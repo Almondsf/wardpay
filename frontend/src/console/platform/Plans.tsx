@@ -75,6 +75,7 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
     setup: plan ? koboToInput(plan.setup_fee_kobo) : '',
     perPupil: plan ? koboToInput(plan.per_pupil_year_kobo) : '',
     planFee: plan ? koboToInput(plan.instalment_plan_fee_kobo) : '200',
+    perPayment: plan ? koboToInput(plan.plan_charge_per_payment_kobo) : '300',
     is_active: plan?.is_active ?? true,
     is_default: plan?.is_default ?? false,
   });
@@ -82,6 +83,7 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
     setup: parseNairaToKobo(form.setup),
     perPupil: parseNairaToKobo(form.perPupil),
     planFee: parseNairaToKobo(form.planFee),
+    perPayment: parseNairaToKobo(form.perPayment),
   };
   const valid = Object.values(prices).every((v) => v !== null && v >= 0);
   const save = useMutation({
@@ -92,6 +94,7 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
         setup_fee_kobo: prices.setup ?? 0,
         per_pupil_year_kobo: prices.perPupil ?? 0,
         instalment_plan_fee_kobo: prices.planFee ?? 0,
+        plan_charge_per_payment_kobo: prices.perPayment ?? 0,
         is_active: form.is_active,
         is_default: form.is_default,
       };
@@ -135,6 +138,12 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
           hint="Charged to the school for each instalment plan made (a parent's choice or the bursar's), on its next termly bill. 0 to charge nothing."
         >
           <input value={form.planFee} onChange={set('planFee')} inputMode="decimal" required />
+        </Field>
+        <Field
+          label="Standard plan charge per payment (₦)"
+          hint="What a family on an instalment plan is charged per payment (Paystack's transfer cap), plus the per-plan fee above. Schools can charge more, not less."
+        >
+          <input value={form.perPayment} onChange={set('perPayment')} inputMode="decimal" required />
         </Field>
         <label className="checkbox">
           <input type="checkbox" checked={form.is_active} onChange={set('is_active')} disabled={plan?.is_default} />

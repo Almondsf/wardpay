@@ -100,6 +100,9 @@ class PlatformPlanOut(BaseModel):
     per_pupil_year_kobo: int
     per_pupil_term_kobo: int
     instalment_plan_fee_kobo: int = Field(description="Charged to the school per instalment plan made")
+    plan_charge_per_payment_kobo: int = Field(
+        description="Standard plan charge to the parent: this per payment plus the per-plan fee"
+    )
     is_default: bool
     is_active: bool
     schools: int
@@ -111,6 +114,7 @@ class PlatformPlanIn(BaseModel):
     setup_fee_kobo: Kobo
     per_pupil_year_kobo: Kobo
     instalment_plan_fee_kobo: Kobo = 20_000
+    plan_charge_per_payment_kobo: Kobo = 30_000
     is_active: bool = True
     is_default: bool = False
 
@@ -296,6 +300,7 @@ def _plan_out(usage: plans.PlanUsage) -> PlatformPlanOut:
         per_pupil_year_kobo=p.per_pupil_year_kobo,
         per_pupil_term_kobo=billing.termly(p.per_pupil_year_kobo),
         instalment_plan_fee_kobo=p.instalment_plan_fee_kobo,
+        plan_charge_per_payment_kobo=p.plan_charge_per_payment_kobo,
         is_default=p.is_default,
         is_active=p.is_active,
         schools=usage.schools,

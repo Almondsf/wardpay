@@ -46,6 +46,7 @@ class Plan(UUIDPrimaryKey, Timestamped, Base):
     __table_args__ = (
         CheckConstraint("setup_fee_kobo >= 0 AND per_pupil_year_kobo >= 0", name="prices_not_negative"),
         CheckConstraint("instalment_plan_fee_kobo >= 0", name="plan_fee_not_negative"),
+        CheckConstraint("plan_charge_per_payment_kobo >= 0", name="per_payment_not_negative"),
         # Exactly one default plan (for schools without one of their own)
         Index("uq_plans_one_default", "is_default", unique=True, postgresql_where=text("is_default")),
     )
@@ -57,6 +58,9 @@ class Plan(UUIDPrimaryKey, Timestamped, Base):
     # Charged to the school for each instalment plan made (owner, 2026-10-25: about ₦200, for the extra
     # reminders a plan sends); billed on the school's next termly bill
     instalment_plan_fee_kobo: Mapped[int] = mapped_column(BigInteger, default=20_000, server_default="20000")
+    # WardPay's standard plan charge to the parent (owner, 2026-10-25): this per payment (Paystack's ₦300
+    # transfer cap) plus the per-plan fee above, so the school recovers both. Schools may only charge more.
+    plan_charge_per_payment_kobo: Mapped[int] = mapped_column(BigInteger, default=30_000, server_default="30000")
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

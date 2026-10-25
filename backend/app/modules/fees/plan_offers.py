@@ -27,8 +27,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import lagos_today
+from app.core.config import get_settings
 from app.core.errors import Conflict, DomainError, NotFound
 from app.core.http import RequestMeta
+from app.core.money import format_naira
 from app.modules.accounts.deps import StaffContext
 from app.modules.audit.models import AuditAction
 from app.modules.audit.service import Actor, record
@@ -100,6 +102,13 @@ def save_template(
     elif charge_kind == PlanChargeKind.PERCENT and charge_value > MAX_PERCENT_BP:
         raise DomainError("A plan charge can be at most 20%.", field="charge_value")
     cleaned = _clean_parts(parts)
+    standard = rates(session, ctx.school_id).standard(len(cleaned))
+    if charge_kind == PlanChargeKind.FIXED and charge_value < standard:
+        raise DomainError(
+            f"The plan charge can't be less than {format_naira(standard)}, {get_settings().app_name}'s standard for "
+            f"{len(cleaned)} payments. Choose the standard charge, or more.",
+            field="charge_value",
+        )
     clash = session.scalar(
         select(PlanTemplate.id).where(func.lower(PlanTemplate.name) == name.lower(), PlanTemplate.id != template_id)
     )
@@ -152,30 +161,62 @@ class Offer:
         return sum(amount for _, amount in self.instalments)
 
 
-def charge_for(template: PlanTemplate, owed_kobo: int) -> int:
+@dataclass(frozen=True)
+class Rates:
+    """WardPay's standard plan charge (owner, 2026-10-25): per payment (Paystack's transfer cap), plus its fee."""
+
+    per_payment_kobo: int = 30_000
+    plan_fee_kobo: int = 20_000
+
+    def standard(self, payments: int) -> int:
+        return payments * self.per_payment_kobo + self.plan_fee_kobo
+
+
+def rates(session: Session, school_id: uuid.UUID) -> Rates:
+    """The school's pricing plan's rates (its own plan, else the default). One query."""
+    from app.modules.platform.models import Plan  # platform billing reads fees; imported here
+
+    own = select(School.plan_id).where(School.id == school_id).scalar_subquery()
+    default = select(Plan.id).where(Plan.is_default.is_(True)).scalar_subquery()
+    row = session.execute(
+        select(Plan.plan_charge_per_payment_kobo, Plan.instalment_plan_fee_kobo).where(
+            Plan.id == func.coalesce(own, default)
+        )
+    ).first()
+    return Rates(int(row[0]), int(row[1])) if row else Rates()
+
+
+def charge_for(template: PlanTemplate, owed_kobo: int, payments: int, rates: Rates) -> int:
+    """The plan charge: the school's own if it chose more, never less than WardPay's standard."""
+    own = 0
     if template.charge_kind == PlanChargeKind.FIXED:
-        return template.charge_value
-    if template.charge_kind == PlanChargeKind.PERCENT:
-        return owed_kobo * template.charge_value // FULL
-    return 0
+        own = template.charge_value
+    elif template.charge_kind == PlanChargeKind.PERCENT:
+        own = owed_kobo * template.charge_value // FULL
+    return max(own, rates.standard(payments))
 
 
-def schedule(template: PlanTemplate, term_start: date, total_kobo: int, today: date) -> list[tuple[date, int]] | None:
-    """The dated amounts for `total_kobo`. Parts already due fall due today, merged; None if under two are left."""
-    merged: list[tuple[date, int]] = []  # (due, share in basis points)
+def remaining_parts(template: PlanTemplate, term_start: date, today: date) -> list[tuple[date, int]]:
+    """(due date, share in basis points) still to come: parts already due fall due today, merged."""
+    merged: list[tuple[date, int]] = []
     for part in template.parts:
         due = max(term_start + timedelta(days=part["day"]), today)
         if merged and merged[-1][0] == due:
             merged[-1] = (due, merged[-1][1] + part["percent_bp"])
         else:
             merged.append((due, part["percent_bp"]))
-    if len(merged) < MIN_INSTALMENTS:
+    return merged
+
+
+def schedule(parts: list[tuple[date, int]], total_kobo: int) -> list[tuple[date, int]] | None:
+    """The dated amounts for `total_kobo`; None if under two payments are left."""
+    if len(parts) < MIN_INSTALMENTS:
         return None
-    amounts = [total_kobo * bp // FULL for _, bp in merged]
+    amounts = [total_kobo * bp // FULL for _, bp in parts]
     amounts[-1] += total_kobo - sum(amounts)  # the last takes what rounding left
     if any(a <= 0 for a in amounts):
         return None
-    return [(due, amount) for (due, _), amount in zip(merged, amounts, strict=True)]
+    return [(due, amount) for (due, _), amount in zip(parts, amounts, strict=True)]
 
 
 @dataclass(frozen=True)
@@ -223,7 +264,12 @@ def _bills(session: Session, student_ids: list[uuid.UUID], today: date) -> list[
 
 
 def offers(
-    session: Session, student_ids: list[uuid.UUID], *, staff: bool = False, today: date | None = None
+    session: Session,
+    school_id: uuid.UUID,
+    student_ids: list[uuid.UUID],
+    *,
+    staff: bool = False,
+    today: date | None = None,
 ) -> dict[uuid.UUID, list[Offer]]:
     """invoice id -> the plans it can go on. Parents see their own choices; staff also see staff-only plans."""
     today = today or lagos_today()
@@ -233,6 +279,7 @@ def offers(
     if not active:
         return {}
     bills = _bills(session, student_ids, today)
+    rated = rates(session, school_id)
     owing_elsewhere: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
     for b in bills:
         if b.owed_kobo > 0:
@@ -245,8 +292,9 @@ def offers(
         for t in active:
             if t.eligibility == PlanEligibility.NO_OLD_DEBTS and old_debts and not staff:
                 continue
-            charge = charge_for(t, b.owed_kobo)
-            dated = schedule(t, b.term_start, b.owed_kobo + charge, today)
+            parts = remaining_parts(t, b.term_start, today)
+            charge = charge_for(t, b.owed_kobo, len(parts), rated)
+            dated = schedule(parts, b.owed_kobo + charge)
             if dated:
                 found.setdefault(b.invoice_id, []).append(
                     Offer(b.invoice_id, b.student_id, t.id, t.name, charge, dated)
@@ -318,7 +366,7 @@ def choose_many(
 
     by_invoice = {
         o.invoice_id: o
-        for bill_offers in offers(session, list({i.student_id for i in invoices}), staff=staff).values()
+        for bill_offers in offers(session, school_id, list({i.student_id for i in invoices}), staff=staff).values()
         for o in bill_offers
         if o.template_id == template_id
     }
@@ -401,13 +449,13 @@ class FamilyChild:
     offers: list[Offer]
 
 
-def family_offers(session: Session, guardian_id: uuid.UUID) -> list[FamilyChild]:
+def family_offers(session: Session, school_id: uuid.UUID, guardian_id: uuid.UUID) -> list[FamilyChild]:
     """A parent's current children and the plans (staff-only ones included) each one's bill can go on."""
     guardian = session.scalar(select(Guardian.id).where(Guardian.id == guardian_id))
     if guardian is None:
         raise NotFound("Parent not found.")
     children = _children(session, guardian_id)
-    found = offers(session, [sid for sid, _ in children], staff=True)
+    found = offers(session, school_id, [sid for sid, _ in children], staff=True)
     per_child: dict[uuid.UUID, list[Offer]] = defaultdict(list)
     for bill_offers in found.values():
         for o in bill_offers:

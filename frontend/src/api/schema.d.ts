@@ -1768,6 +1768,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plan-templates/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** WardPay's standard plan charge: per payment, plus once per plan (schools may only charge more) */
+        get: operations["fees_plan_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plan-templates/{template_id}": {
         parameters: {
             query?: never;
@@ -6456,6 +6473,19 @@ export interface components {
              */
             percent_bp: number;
         };
+        /** PlanRatesOut */
+        PlanRatesOut: {
+            /**
+             * Per Payment Kobo
+             * @description WardPay's standard charge per payment in a plan
+             */
+            per_payment_kobo: number;
+            /**
+             * Plan Fee Kobo
+             * @description Plus this once per plan
+             */
+            plan_fee_kobo: number;
+        };
         /** PlanTemplateIn */
         PlanTemplateIn: {
             /** @default none */
@@ -6554,6 +6584,11 @@ export interface components {
             name: string;
             /** Per Pupil Year Kobo */
             per_pupil_year_kobo: number;
+            /**
+             * Plan Charge Per Payment Kobo
+             * @default 30000
+             */
+            plan_charge_per_payment_kobo?: number;
             /** Setup Fee Kobo */
             setup_fee_kobo: number;
         };
@@ -6581,6 +6616,11 @@ export interface components {
             per_pupil_term_kobo: number;
             /** Per Pupil Year Kobo */
             per_pupil_year_kobo: number;
+            /**
+             * Plan Charge Per Payment Kobo
+             * @description Standard plan charge to the parent: this per payment plus the per-plan fee
+             */
+            plan_charge_per_payment_kobo: number;
             /** Schools */
             schools: number;
             /** Setup Fee Kobo */
@@ -18038,6 +18078,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanTemplateOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_plan_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanRatesOut"];
                 };
             };
             /** @description Bad Request */

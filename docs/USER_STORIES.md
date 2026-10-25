@@ -111,6 +111,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Check that a receipt is genuine on a public page (scan its QR code), without seeing the child's details. A reversed payment shows as reversed; a fake receipt doesn't match anything.
 
 ## Platform admin
+- ✅ Set WardPay's standard plan charge that families pay (₦300 a payment plus ₦200 a plan by default), which schools can raise but not lower.
 - ✅ Charge each school a fee per instalment plan made (₦200 by default, set per pricing plan), on its next termly bill.
 - ✅ Adjust a school's bill: waive the set-up fee or give a discount with a reason, or give them more time by moving the due date.
 - ✅ See the last 12 months at a glance: my subscription income, money parents paid through WardPay, and schools joining or suspended.

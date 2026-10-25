@@ -116,7 +116,7 @@ def family_page(session: Session, found: Resolved) -> FamilyPage:
     owed = _owed(session, ids)
     breakdowns = fee_breakdowns(session, ids)
     offered: dict[uuid.UUID, list[Offer]] = {}
-    for bill_offers in plan_offers.offers(session, ids).values():
+    for bill_offers in plan_offers.offers(session, found.school_id, ids).values():
         for offer in bill_offers:
             offered.setdefault(offer.student_id, []).append(offer)
     classes = (

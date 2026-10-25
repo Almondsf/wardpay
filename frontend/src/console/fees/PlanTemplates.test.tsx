@@ -35,6 +35,7 @@ describe('school instalment plans', () => {
     const calls = mockApi({
       'POST /api/v1/auth/refresh': () => json(signedIn(bursar)),
       'GET /api/v1/plan-templates': () => json([]),
+      'GET /api/v1/plan-templates/rates': () => json({ per_payment_kobo: 30_000, plan_fee_kobo: 20_000 }),
       'POST /api/v1/plan-templates': async (request) => json({ ...payIn3, ...(await request.json()), id: 'pt2' }, 201),
     });
     renderApp(
@@ -52,7 +53,12 @@ describe('school instalment plans', () => {
     expect(dialog.getByRole('button', { name: 'Save plan' })).toBeDisabled();
     await userEvent.clear(dialog.getByLabelText('Payment 3 share'));
     await userEvent.type(dialog.getByLabelText('Payment 3 share'), '25');
+    // WardPay's standard for 3 payments is 3 x ₦300 + ₦200; the school may only charge more
+    expect(dialog.getByRole('option', { name: /standard \(₦1,100.00 for 3 payments\)/ })).toBeInTheDocument();
     await userEvent.selectOptions(dialog.getByLabelText(/^Plan charge/), 'fixed');
+    await userEvent.type(dialog.getByLabelText('Amount (₦)'), '900');
+    expect(dialog.getByRole('button', { name: 'Save plan' })).toBeDisabled(); // under the standard
+    await userEvent.clear(dialog.getByLabelText('Amount (₦)'));
     await userEvent.type(dialog.getByLabelText('Amount (₦)'), '1500');
     await userEvent.click(dialog.getByRole('button', { name: 'Save plan' }));
     await vi.waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/plan-templates'))).toBe(true));

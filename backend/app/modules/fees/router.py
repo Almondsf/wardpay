@@ -1074,7 +1074,7 @@ def bill_plan_offers(
     invoice_id: uuid.UUID, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
 ) -> list[PlanOfferOut]:
     invoice = get_or_404(db, Invoice, invoice_id, label="Invoice")
-    found = plan_offers.offers(db, [invoice.student_id], staff=True).get(invoice.id, [])
+    found = plan_offers.offers(db, ctx.school_id, [invoice.student_id], staff=True).get(invoice.id, [])
     return [offer_out(o) for o in found]
 
 
@@ -1127,7 +1127,7 @@ def family_plan_offers(
 ) -> list[FamilyChildOffersOut]:
     return [
         FamilyChildOffersOut(student_id=c.student_id, first_name=c.first_name, offers=[offer_out(o) for o in c.offers])
-        for c in plan_offers.family_offers(db, guardian_id)
+        for c in plan_offers.family_offers(db, ctx.school_id, guardian_id)
     ]
 
 
@@ -1144,3 +1144,18 @@ def family_school_plan(
     return FamilyPlanResultOut(
         applied=[a.invoice.student_id for a in result.applied], messages=result.messages, told=result.told
     )
+
+
+class PlanRatesOut(BaseModel):
+    per_payment_kobo: int = Field(description="WardPay's standard charge per payment in a plan")
+    plan_fee_kobo: int = Field(description="Plus this once per plan")
+
+
+@router.get(
+    "/plan-templates/rates",
+    response_model=PlanRatesOut,
+    summary="WardPay's standard plan charge: per payment, plus once per plan (schools may only charge more)",
+)
+def plan_rates(ctx: StaffContext = FEES_VIEW, db: Session = Depends(get_db)) -> PlanRatesOut:
+    r = plan_offers.rates(db, ctx.school_id)
+    return PlanRatesOut(per_payment_kobo=r.per_payment_kobo, plan_fee_kobo=r.plan_fee_kobo)

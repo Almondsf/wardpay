@@ -237,3 +237,71 @@ async def test_another_school_cant_put_our_families_on_plans(client, world, db, 
     assert (
         await client.post(f"{url}/school-plan", headers=stranger, json={"template_id": plan["id"]})
     ).status_code == 404
+
+
+async def test_wardpays_standard_charge_is_the_floor(client, world, db, term_running):
+    # No charge set by the school: WardPay's standard, ₦300 a payment plus ₦200
+    await add_plan(client, world, charge_kind="none", charge_value=0)
+    # Too little for three payments (the standard is ₦1,100)
+    low = await client.post(
+        "/api/v1/plan-templates",
+        headers=world["bursar"],
+        json={**PAY_IN_3, "name": "Cheap", "charge_value": 1_000 * NAIRA},
+    )
+    assert low.status_code == 400 and "₦1,100" in low.json()["error"]["message"]
+    # A percentage that works out below the standard is raised to it
+    await add_plan(client, world, name="Tiny percent", charge_kind="percent", charge_value=1)
+    await generate(client, world)
+    token = await staff_link(client, world)
+    offers = {o["name"]: o for o in ada((await page(client, token)).json(), world)["plan_offers"]}
+    assert offers["Pay in 3"]["charge_kobo"] == 1_100 * NAIRA
+    assert offers["Tiny percent"]["charge_kobo"] == 1_100 * NAIRA  # 0.01% of ₦155,000 is ₦15.50
+
+
+async def test_payments_already_due_count_once(client, world, db):
+    """Joining late: the parts already due merge into one payment, and the standard counts what's left."""
+    today = lagos_today()
+    scope_platform_wide(db)
+    db.execute(
+        text("UPDATE terms SET start_date = :s, end_date = :e WHERE id = :id"),
+        {"s": today - timedelta(days=50), "e": today + timedelta(days=60), "id": world["terms"][0].id},
+    )
+    db.commit()
+    await add_plan(client, world, charge_kind="none", charge_value=0)  # days 0, 40, 70: two have passed
+    await generate(client, world)
+    token = await staff_link(client, world)
+    [offer] = ada((await page(client, token)).json(), world)["plan_offers"]
+    assert len(offer["instalments"]) == 2 and offer["charge_kobo"] == 800 * NAIRA  # 2 x ₦300 + ₦200
+    assert offer["instalments"][0]["due_date"] == today.isoformat()
+
+
+async def test_the_rates_come_from_wardpays_pricing_plan(client, world, db, term_running):
+    platform = headers_for(db, make_user(db, None, Role.PLATFORM_ADMIN))
+    db.commit()
+    default = next(p for p in (await client.get("/api/v1/platform/plans", headers=platform)).json() if p["is_default"])
+    changed = await client.put(
+        f"/api/v1/platform/plans/{default['id']}",
+        headers=platform,
+        json={
+            "name": default["name"],
+            "setup_fee_kobo": default["setup_fee_kobo"],
+            "per_pupil_year_kobo": default["per_pupil_year_kobo"],
+            "instalment_plan_fee_kobo": 0,
+            "plan_charge_per_payment_kobo": 500 * NAIRA,
+            "is_default": True,
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    taken = await client.post(
+        "/api/v1/platform/plans",
+        headers=platform,
+        json={"name": default["name"], "setup_fee_kobo": 0, "per_pupil_year_kobo": 0, "is_default": True},
+    )
+    assert taken.status_code == 409  # a clear answer, not a server error
+    rates = (await client.get("/api/v1/plan-templates/rates", headers=world["bursar"])).json()
+    assert rates == {"per_payment_kobo": 500 * NAIRA, "plan_fee_kobo": 0}
+    await add_plan(client, world, charge_kind="none", charge_value=0)
+    await generate(client, world)
+    token = await staff_link(client, world)
+    [offer] = ada((await page(client, token)).json(), world)["plan_offers"]
+    assert offer["charge_kobo"] == 1_500 * NAIRA  # 3 x ₦500 + ₦0

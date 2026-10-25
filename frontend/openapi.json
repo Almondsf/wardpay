@@ -6919,6 +6919,26 @@
         "title": "PlanPart",
         "type": "object"
       },
+      "PlanRatesOut": {
+        "properties": {
+          "per_payment_kobo": {
+            "description": "WardPay's standard charge per payment in a plan",
+            "title": "Per Payment Kobo",
+            "type": "integer"
+          },
+          "plan_fee_kobo": {
+            "description": "Plus this once per plan",
+            "title": "Plan Fee Kobo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "per_payment_kobo",
+          "plan_fee_kobo"
+        ],
+        "title": "PlanRatesOut",
+        "type": "object"
+      },
       "PlanTemplateIn": {
         "properties": {
           "charge_kind": {
@@ -7121,6 +7141,13 @@
             "title": "Per Pupil Year Kobo",
             "type": "integer"
           },
+          "plan_charge_per_payment_kobo": {
+            "default": 30000,
+            "maximum": 1000000000000.0,
+            "minimum": 0.0,
+            "title": "Plan Charge Per Payment Kobo",
+            "type": "integer"
+          },
           "setup_fee_kobo": {
             "maximum": 1000000000000.0,
             "minimum": 0.0,
@@ -7172,6 +7199,11 @@
             "title": "Per Pupil Year Kobo",
             "type": "integer"
           },
+          "plan_charge_per_payment_kobo": {
+            "description": "Standard plan charge to the parent: this per payment plus the per-plan fee",
+            "title": "Plan Charge Per Payment Kobo",
+            "type": "integer"
+          },
           "schools": {
             "title": "Schools",
             "type": "integer"
@@ -7189,6 +7221,7 @@
           "per_pupil_year_kobo",
           "per_pupil_term_kobo",
           "instalment_plan_fee_kobo",
+          "plan_charge_per_payment_kobo",
           "is_default",
           "is_active",
           "schools"
@@ -23742,6 +23775,102 @@
           }
         ],
         "summary": "Add an instalment plan parents can choose",
+        "tags": [
+          "fees"
+        ]
+      }
+    },
+    "/api/v1/plan-templates/rates": {
+      "get": {
+        "operationId": "fees_plan_rates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "WardPay's standard plan charge: per payment, plus once per plan (schools may only charge more)",
         "tags": [
           "fees"
         ]

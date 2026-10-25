@@ -90,7 +90,7 @@ const AREAS = [
         'Pupils who aren’t taking part are never charged by mistake'],
       ['A price list for uniforms, textbooks and other extras; add them to one pupil’s bill with a quantity',
         'Individual purchases are billed and tracked like everything else'],
-      ['The school’s own instalment plans (“Pay in 3”) that parents choose themselves on their phone, with an optional plan charge',
+      ['The school’s own instalment plans (“Pay in 3”), with a sensible plan charge set by WardPay (₦300 a payment + ₦200) that the school can raise',
         'The bursar puts parents who ask on a plan in two clicks and they’re told by WhatsApp; parents who like phones can choose one themselves'],
       ['Agree with a parent to pay a bill in instalments (2 to 12 dated amounts)',
         'Parents who keep to a plan aren’t chased; reminders ask for the next instalment, not the whole bill'],

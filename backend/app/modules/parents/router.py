@@ -306,7 +306,7 @@ def child_account(
     overview = next(c for c in portal.household(db, ctx).children if c.student.id == student.id)
     invoices = db.execute(invoicing.invoices_query(student_id=student.id).where(Invoice.voided_at.is_(None))).all()
     plans = plan_views(db, [inv.id for inv, *_ in invoices])
-    offered = plan_offers.offers(db, [student.id])
+    offered = plan_offers.offers(db, ctx.school_id, [student.id])
     payments = [p for p, _ in db.execute(payment_service.payments_query(student_id=student.id).limit(100)).all()]
     ids = [p.id for p in payments]
     receipts, reversed_ = receipts_for_payments(db, ids), payment_service.reversed_ids(db, ids)

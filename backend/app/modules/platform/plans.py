@@ -15,7 +15,7 @@ from app.modules.schools.models import School
 
 from .models import Plan
 
-PRICE_FIELDS = ("setup_fee_kobo", "per_pupil_year_kobo", "instalment_plan_fee_kobo")
+PRICE_FIELDS = ("setup_fee_kobo", "per_pupil_year_kobo", "instalment_plan_fee_kobo", "plan_charge_per_payment_kobo")
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,7 @@ def save_plan(
     per_pupil_year_kobo: int,
     is_active: bool,
     instalment_plan_fee_kobo: int = 20_000,
+    plan_charge_per_payment_kobo: int = 30_000,
     is_default: bool,
 ) -> Plan:
     """Create a plan (plan_id None) or change one. Price changes apply to bills generated afterwards."""
@@ -60,18 +61,20 @@ def save_plan(
     plan.name, plan.description = name.strip(), description.strip()
     plan.setup_fee_kobo, plan.per_pupil_year_kobo = setup_fee_kobo, per_pupil_year_kobo
     plan.instalment_plan_fee_kobo = instalment_plan_fee_kobo
+    plan.plan_charge_per_payment_kobo = plan_charge_per_payment_kobo
     plan.is_active = is_active
-    if is_default and not plan.is_default:
-        if not is_active:
-            raise Conflict("The default plan must be active.")
-        session.execute(update(Plan).where(Plan.is_default.is_(True)).values(is_default=False))
-        session.flush()
-        plan.is_default = True
-    try:
+    if is_default and not plan.is_default and not is_active:
+        raise Conflict("The default plan must be active.")
+    try:  # first, so a name already taken is a clear answer (the default switch below would flush it too)
         session.flush()
     except IntegrityError as e:
         session.rollback()
         raise Conflict("There's already a plan with that name.", field="name") from e
+    if is_default and not plan.is_default:
+        session.execute(update(Plan).where(Plan.is_default.is_(True)).values(is_default=False))
+        session.flush()
+        plan.is_default = True
+        session.flush()
     after = {f: getattr(plan, f) for f in (*PRICE_FIELDS, "name", "is_active", "is_default")}
     record(
         session,

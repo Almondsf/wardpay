@@ -341,7 +341,7 @@ const SECTIONS = [
           'Go to Setup → Fees → Instalment plans and press Add plan.',
           'Give it a name parents will see (for example Pay in 3). For each payment, set its share of the bill and how many days after the term starts it is due; the shares must add up to 100%.',
           'Choose who can choose it: any parent, parents with nothing owed from before, or only staff.',
-          'Optionally add a plan charge (a fixed amount or a percentage, up to 20%) to cover the extra payment charges. It goes on the bill when a parent chooses the plan.',
+          'The plan charge starts at WardPay’s standard (₦300 for each payment plus ₦200, so ₦1,100 for 3 payments), which covers the extra payment charges and reminders. You can charge more (a fixed amount, or a percentage up to 20%), but not less. It goes on the bill when a family goes on the plan.',
           'Press Save plan. Use Switch off to stop offering a plan; families already on it keep it.',
         ],
         notes: [
@@ -724,7 +724,7 @@ const SECTIONS = [
         steps: [
           'Go to Billing and press Bill this term; Preview, then Send … bills. A school is never billed twice for a term.',
           'On a bill: Record payment (a bank transfer), Adjust (waive the set-up fee or give a discount), Change due date, Void, or Download PDF.',
-          'Go to Plans to set the set-up fee, the per-pupil fee and the fee per instalment plan (₦200 to start), and move a school to another plan.',
+          'Go to Plans to set the set-up fee, the per-pupil fee, the fee per instalment plan (₦200 to start) and the standard plan charge per payment (₦300 to start), and move a school to another plan.',
         ],
       },
       {
@@ -742,6 +742,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['25 Oct 2026', 'WardPay’s standard plan charge (₦300 a payment + ₦200), which schools can raise but not lower.'],
   ['25 Oct 2026', 'Putting a whole family on a plan from the pupil’s page, and telling the parent by WhatsApp or text.'],
   ['25 Oct 2026', 'The school’s own instalment plans: set up by staff, chosen by parents; the per-plan fee on WardPay bills.'],
   ['24 Oct 2026', 'The journal and the end-of-session pack are now prepared in the background, then download by themselves.'],

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type Schemas } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
+import { BRAND } from '../../lib/brand';
 import { formatKobo, koboToInput, parseNairaToKobo } from '../../lib/format';
 import { Empty, ErrorAlert, Field, Loading, Modal, fieldError } from '../../lib/ui';
 
@@ -22,11 +23,20 @@ export function describeParts(t: Pick<Template, 'parts'>): string {
   return t.parts.map((p) => `${percent(p.percent_bp)} ${p.day === 0 ? 'at the start of term' : `by day ${p.day}`}`).join(' · ');
 }
 
-export function describeCharge(t: Pick<Template, 'charge_kind' | 'charge_value'>): string {
-  if (t.charge_kind === 'fixed') return formatKobo(t.charge_value);
-  if (t.charge_kind === 'percent') return `${percent(t.charge_value)} of what’s owed`;
-  return 'None';
+type Rates = Schemas['PlanRatesOut'];
+
+/** WardPay's standard plan charge for so many payments: schools may only charge more. */
+export const standardCharge = (rates: Rates | undefined, payments: number) =>
+  rates ? payments * rates.per_payment_kobo + rates.plan_fee_kobo : 0;
+
+export function describeCharge(t: Pick<Template, 'charge_kind' | 'charge_value' | 'parts'>, rates: Rates | undefined): string {
+  const standard = standardCharge(rates, t.parts.length);
+  if (t.charge_kind === 'fixed') return formatKobo(Math.max(t.charge_value, standard));
+  if (t.charge_kind === 'percent') return `${percent(t.charge_value)} of what’s owed, at least ${formatKobo(standard)}`;
+  return `Standard: ${formatKobo(standard)}`;
 }
+
+const useRates = () => useQuery({ queryKey: ['plan-rates'], queryFn: async () => unwrap(await api.GET('/api/v1/plan-templates/rates')) });
 
 /** The school's own instalment plans, which parents can choose themselves. */
 export function PlanTemplates() {
@@ -34,6 +44,7 @@ export function PlanTemplates() {
   const manage = can('fees.manage');
   const queryClient = useQueryClient();
   const templates = useQuery({ queryKey: ['plan-templates'], queryFn: async () => unwrap(await api.GET('/api/v1/plan-templates')) });
+  const rates = useRates();
   const [editing, setEditing] = useState<Template | 'new' | null>(null);
   const toggle = useMutation({
     mutationFn: async (t: Template) =>
@@ -80,7 +91,7 @@ export function PlanTemplates() {
                   <td>{t.name}</td>
                   <td className="small">{describeParts(t)}</td>
                   <td className="small">{ELIGIBILITY_LABELS[t.eligibility]}</td>
-                  <td>{describeCharge(t)}</td>
+                  <td className="small">{describeCharge(t, rates.data)}</td>
                   {manage && (
                     <td className="actions nowrap">
                       <button className="secondary small" onClick={() => setEditing(t)}>
@@ -111,6 +122,7 @@ function PlanForm({ template, onClose }: { template: Template | null; onClose: (
   const queryClient = useQueryClient();
   const [name, setName] = useState(template?.name ?? '');
   const [eligibility, setEligibility] = useState<Eligibility>(template?.eligibility ?? 'no_old_debts');
+  const rates = useRates();
   const [chargeKind, setChargeKind] = useState<ChargeKind>(template?.charge_kind ?? 'none');
   const [charge, setCharge] = useState(
     template?.charge_kind === 'fixed'
@@ -130,7 +142,13 @@ function PlanForm({ template, onClose }: { template: Template | null; onClose: (
   const totalBp = shares.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
   const chargeValue =
     chargeKind === 'fixed' ? (parseNairaToKobo(charge) ?? 0) : chargeKind === 'percent' ? Math.round(Number(charge) * 100) || 0 : 0;
-  const valid = name.trim().length >= 2 && totalBp === 10_000 && rows.length >= 2 && (chargeKind === 'none' || chargeValue > 0);
+  const standard = standardCharge(rates.data, rows.length);
+  const valid =
+    name.trim().length >= 2 &&
+    totalBp === 10_000 &&
+    rows.length >= 2 &&
+    (chargeKind === 'none' || chargeValue > 0) &&
+    (chargeKind !== 'fixed' || chargeValue >= standard);
   const save = useMutation({
     mutationFn: async () => {
       const body = {
@@ -217,11 +235,18 @@ function PlanForm({ template, onClose }: { template: Template | null; onClose: (
           </div>
           {fieldError(save.error, 'parts') && <p className="small error-text">{fieldError(save.error, 'parts')}</p>}
         </fieldset>
-        <Field label="Plan charge" hint="Added to the bill when a parent chooses the plan, to cover the extra payment charges.">
+        <Field
+          label="Plan charge"
+          hint={`Added to the bill when a family goes on the plan, to cover the extra payment charges and reminders. ${BRAND}’s standard is ${
+            rates.data ? `${formatKobo(rates.data.per_payment_kobo)} a payment plus ${formatKobo(rates.data.plan_fee_kobo)}` : '…'
+          }; the school can charge more, not less.`}
+        >
           <select value={chargeKind} onChange={(e) => setChargeKind(e.target.value as ChargeKind)}>
-            <option value="none">No charge</option>
-            <option value="fixed">A fixed amount</option>
-            <option value="percent">A percentage of what’s owed (up to 20%)</option>
+            <option value="none">
+              {BRAND}’s standard ({formatKobo(standard)} for {rows.length} payments)
+            </option>
+            <option value="fixed">A fixed amount (at least {formatKobo(standard)})</option>
+            <option value="percent">A percentage of what’s owed (never less than the standard)</option>
           </select>
         </Field>
         {chargeKind !== 'none' && (

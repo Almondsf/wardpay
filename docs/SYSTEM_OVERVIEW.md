@@ -583,7 +583,12 @@ shows a line when anything is serious; the screen is Reports → Unusual activit
 **School instalment plans** (`fees/plan_offers.py`, owner 2026-10-25). A school sets up its own plans
 (`PlanTemplate`: name; parts as a share in basis points and a day counted from the term's start, 2 to 12,
 adding to 100%; who may choose it: any parent, parents with nothing owed on the pupil's other bills, or
-staff only; an optional plan charge, fixed or a percentage up to 20%). `GET/POST /plan-templates`,
+staff only; a plan charge). The plan charge never goes below WardPay's standard (owner, 2026-10-25):
+`plan_charge_per_payment_kobo` (₦300, Paystack's transfer cap) for each payment plus the per-plan fee
+(₦200), both on the school's pricing plan (`plan_offers.rates`, one query; `GET /plan-templates/rates`). So
+3 payments cost the family ₦1,100. A school may charge more (a fixed amount at least the standard, checked
+when saved; or a percentage up to 20%, raised to the standard when it works out less), never less; "none"
+means the standard. The standard counts the payments actually left after merging those already due. `GET/POST /plan-templates`,
 `PUT /plan-templates/{id}` (`fees.view` / `fees.manage`). Editing a plan never changes plans already
 chosen. A term bill that's still owed, has no plan, and whose term hasn't ended or been closed is offered
 the plans its pupil may choose; parts whose day has passed fall due today (merged), and a plan with fewer
