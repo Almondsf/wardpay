@@ -1442,6 +1442,34 @@
         "title": "ChoicesIn",
         "type": "object"
       },
+      "ChooseOfferIn": {
+        "properties": {
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "ChooseOfferIn",
+        "type": "object"
+      },
+      "ChoosePlanIn": {
+        "properties": {
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "ChoosePlanIn",
+        "type": "object"
+      },
       "ChooseSchoolIn": {
         "properties": {
           "guardian_id": {
@@ -3022,6 +3050,14 @@
             "title": "Owed Kobo",
             "type": "integer"
           },
+          "plan_offers": {
+            "description": "The school's instalment plans the parent can choose",
+            "items": {
+              "$ref": "#/components/schemas/PlanOfferOut"
+            },
+            "title": "Plan Offers",
+            "type": "array"
+          },
           "student_id": {
             "format": "uuid",
             "title": "Student Id",
@@ -3043,7 +3079,8 @@
           "account_number",
           "bank_name",
           "fees",
-          "earlier_left_kobo"
+          "earlier_left_kobo",
+          "plan_offers"
         ],
         "title": "FamilyChildOut",
         "type": "object"
@@ -3136,6 +3173,26 @@
           "amount_kobo"
         ],
         "title": "FamilyPartIn",
+        "type": "object"
+      },
+      "FamilyPlanIn": {
+        "properties": {
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "template_id"
+        ],
+        "title": "FamilyPlanIn",
         "type": "object"
       },
       "FamilyShareOut": {
@@ -5319,6 +5376,25 @@
         "title": "NewLineIn",
         "type": "object"
       },
+      "OfferInstalmentOut": {
+        "properties": {
+          "amount_kobo": {
+            "title": "Amount Kobo",
+            "type": "integer"
+          },
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "due_date",
+          "amount_kobo"
+        ],
+        "title": "OfferInstalmentOut",
+        "type": "object"
+      },
       "OnboardingOut": {
         "properties": {
           "url": {
@@ -5926,6 +6002,14 @@
               }
             ]
           },
+          "plan_offers": {
+            "description": "The school's plans this bill can go on",
+            "items": {
+              "$ref": "#/components/schemas/PlanOfferOut"
+            },
+            "title": "Plan Offers",
+            "type": "array"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -5998,6 +6082,14 @@
                 "type": "null"
               }
             ]
+          },
+          "plan_offers": {
+            "description": "The school's plans this bill can go on",
+            "items": {
+              "$ref": "#/components/schemas/PlanOfferOut"
+            },
+            "title": "Plan Offers",
+            "type": "array"
           },
           "status": {
             "title": "Status",
@@ -6703,6 +6795,184 @@
         "title": "PayoutOut",
         "type": "object"
       },
+      "PlanChargeKind": {
+        "enum": [
+          "none",
+          "fixed",
+          "percent"
+        ],
+        "title": "PlanChargeKind",
+        "type": "string"
+      },
+      "PlanEligibility": {
+        "enum": [
+          "anyone",
+          "no_old_debts",
+          "staff_only"
+        ],
+        "title": "PlanEligibility",
+        "type": "string"
+      },
+      "PlanOfferOut": {
+        "properties": {
+          "charge_kobo": {
+            "description": "The plan charge added to the bill if chosen",
+            "title": "Charge Kobo",
+            "type": "integer"
+          },
+          "instalments": {
+            "items": {
+              "$ref": "#/components/schemas/OfferInstalmentOut"
+            },
+            "title": "Instalments",
+            "type": "array"
+          },
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
+          "total_kobo": {
+            "description": "What's owed plus the charge",
+            "title": "Total Kobo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "template_id",
+          "name",
+          "charge_kobo",
+          "total_kobo",
+          "instalments"
+        ],
+        "title": "PlanOfferOut",
+        "type": "object"
+      },
+      "PlanPart": {
+        "properties": {
+          "day": {
+            "description": "Days after the term starts",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Day",
+            "type": "integer"
+          },
+          "percent_bp": {
+            "description": "Share of the bill in basis points (2500 = 25%)",
+            "exclusiveMinimum": 0.0,
+            "maximum": 10000.0,
+            "title": "Percent Bp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "percent_bp",
+          "day"
+        ],
+        "title": "PlanPart",
+        "type": "object"
+      },
+      "PlanTemplateIn": {
+        "properties": {
+          "charge_kind": {
+            "$ref": "#/components/schemas/PlanChargeKind",
+            "default": "none"
+          },
+          "charge_value": {
+            "default": 0,
+            "description": "Kobo for a fixed charge; basis points (250 = 2.5%) for a percentage",
+            "maximum": 10000000000.0,
+            "minimum": 0.0,
+            "title": "Charge Value",
+            "type": "integer"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PlanEligibility",
+            "default": "no_old_debts"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPart"
+            },
+            "maxItems": 12,
+            "minItems": 2,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "parts"
+        ],
+        "title": "PlanTemplateIn",
+        "type": "object"
+      },
+      "PlanTemplateOut": {
+        "properties": {
+          "charge_kind": {
+            "$ref": "#/components/schemas/PlanChargeKind"
+          },
+          "charge_value": {
+            "title": "Charge Value",
+            "type": "integer"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/PlanEligibility"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_active",
+          "eligibility",
+          "charge_kind",
+          "charge_value",
+          "parts"
+        ],
+        "title": "PlanTemplateOut",
+        "type": "object"
+      },
       "PlatformOverviewOut": {
         "properties": {
           "payments_this_month": {
@@ -6785,6 +7055,13 @@
             "title": "Description",
             "type": "string"
           },
+          "instalment_plan_fee_kobo": {
+            "default": 20000,
+            "maximum": 1000000000000.0,
+            "minimum": 0.0,
+            "title": "Instalment Plan Fee Kobo",
+            "type": "integer"
+          },
           "is_active": {
             "default": true,
             "title": "Is Active",
@@ -6833,6 +7110,11 @@
             "title": "Id",
             "type": "string"
           },
+          "instalment_plan_fee_kobo": {
+            "description": "Charged to the school per instalment plan made",
+            "title": "Instalment Plan Fee Kobo",
+            "type": "integer"
+          },
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
@@ -6869,6 +7151,7 @@
           "setup_fee_kobo",
           "per_pupil_year_kobo",
           "per_pupil_term_kobo",
+          "instalment_plan_fee_kobo",
           "is_default",
           "is_active",
           "schools"
@@ -9497,6 +9780,7 @@
           "setup",
           "licence",
           "pupils",
+          "instalment_plans",
           "discount"
         ],
         "title": "SubscriptionLineKind",
@@ -18190,6 +18474,118 @@
         ]
       }
     },
+    "/api/v1/invoices/{invoice_id}/plan-offers": {
+      "get": {
+        "operationId": "fees_bill_plan_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invoice Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanOfferOut"
+                  },
+                  "title": "Response Fees Bill Plan Offers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The school's plans this bill can go on, with dates and amounts (staff see staff-only plans too)",
+        "tags": [
+          "fees"
+        ]
+      }
+    },
     "/api/v1/invoices/{invoice_id}/plan/cancel": {
       "post": {
         "operationId": "fees_cancel_payment_plan",
@@ -18303,6 +18699,124 @@
           }
         ],
         "summary": "End a bill's payment plan",
+        "tags": [
+          "fees"
+        ]
+      }
+    },
+    "/api/v1/invoices/{invoice_id}/plan/school-plan": {
+      "post": {
+        "operationId": "fees_choose_school_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invoice Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseOfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put a bill on one of the school's plans (its plan charge is added to the bill)",
         "tags": [
           "fees"
         ]
@@ -20740,6 +21254,124 @@
         ]
       }
     },
+    "/api/v1/parent/invoices/{invoice_id}/plan": {
+      "post": {
+        "operationId": "parent_choose_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invoice Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChoosePlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParentInvoiceDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Choose one of the school's instalment plans for this bill (its plan charge is added)",
+        "tags": [
+          "parent"
+        ]
+      }
+    },
     "/api/v1/parent/my-data": {
       "get": {
         "operationId": "parent_my_data",
@@ -22601,6 +23233,328 @@
         "summary": "Reverse a payment recorded in error (adds a negative entry; nothing is deleted)",
         "tags": [
           "payments"
+        ]
+      }
+    },
+    "/api/v1/plan-templates": {
+      "get": {
+        "operationId": "fees_list_plan_templates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanTemplateOut"
+                  },
+                  "title": "Response Fees List Plan Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The school's instalment plans",
+        "tags": [
+          "fees"
+        ]
+      },
+      "post": {
+        "operationId": "fees_add_plan_template",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanTemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add an instalment plan parents can choose",
+        "tags": [
+          "fees"
+        ]
+      }
+    },
+    "/api/v1/plan-templates/{template_id}": {
+      "put": {
+        "operationId": "fees_change_plan_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanTemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change an instalment plan (plans already chosen don't change)",
+        "tags": [
+          "fees"
         ]
       }
     },
@@ -26514,6 +27468,119 @@
           }
         },
         "summary": "Pay for several children at once (card, transfer or USSD), with the amount chosen per child",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/pay/{token}/plan": {
+      "post": {
+        "operationId": "public_family_choose_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{20,64}$",
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Choose one of the school's instalment plans for a child's bill (its plan charge is added)",
         "tags": [
           "public"
         ]

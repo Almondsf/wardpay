@@ -15,7 +15,7 @@ from app.modules.schools.models import School
 
 from .models import Plan
 
-PRICE_FIELDS = ("setup_fee_kobo", "per_pupil_year_kobo")
+PRICE_FIELDS = ("setup_fee_kobo", "per_pupil_year_kobo", "instalment_plan_fee_kobo")
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,7 @@ def save_plan(
     setup_fee_kobo: int,
     per_pupil_year_kobo: int,
     is_active: bool,
+    instalment_plan_fee_kobo: int = 20_000,
     is_default: bool,
 ) -> Plan:
     """Create a plan (plan_id None) or change one. Price changes apply to bills generated afterwards."""
@@ -58,6 +59,7 @@ def save_plan(
         raise Conflict("Make another plan the default first.")
     plan.name, plan.description = name.strip(), description.strip()
     plan.setup_fee_kobo, plan.per_pupil_year_kobo = setup_fee_kobo, per_pupil_year_kobo
+    plan.instalment_plan_fee_kobo = instalment_plan_fee_kobo
     plan.is_active = is_active
     if is_default and not plan.is_default:
         if not is_active:

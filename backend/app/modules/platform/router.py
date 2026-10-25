@@ -99,6 +99,7 @@ class PlatformPlanOut(BaseModel):
     setup_fee_kobo: int
     per_pupil_year_kobo: int
     per_pupil_term_kobo: int
+    instalment_plan_fee_kobo: int = Field(description="Charged to the school per instalment plan made")
     is_default: bool
     is_active: bool
     schools: int
@@ -109,6 +110,7 @@ class PlatformPlanIn(BaseModel):
     description: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] = ""
     setup_fee_kobo: Kobo
     per_pupil_year_kobo: Kobo
+    instalment_plan_fee_kobo: Kobo = 20_000
     is_active: bool = True
     is_default: bool = False
 
@@ -293,6 +295,7 @@ def _plan_out(usage: plans.PlanUsage) -> PlatformPlanOut:
         setup_fee_kobo=p.setup_fee_kobo,
         per_pupil_year_kobo=p.per_pupil_year_kobo,
         per_pupil_term_kobo=billing.termly(p.per_pupil_year_kobo),
+        instalment_plan_fee_kobo=p.instalment_plan_fee_kobo,
         is_default=p.is_default,
         is_active=p.is_active,
         schools=usage.schools,

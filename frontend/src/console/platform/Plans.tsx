@@ -31,6 +31,7 @@ export function PlatformPlans() {
                 <th>Plan</th>
                 <th className="num">Set-up (once)</th>
                 <th className="num">Per pupil, per term</th>
+                <th className="num">Per instalment plan</th>
                 <th className="num">Schools</th>
                 <th aria-label="Actions" />
               </tr>
@@ -48,6 +49,7 @@ export function PlatformPlans() {
                     {formatKobo(p.per_pupil_term_kobo)}
                     <div className="muted small">{formatKobo(p.per_pupil_year_kobo)} a year</div>
                   </td>
+                  <td className="num">{formatKobo(p.instalment_plan_fee_kobo)}</td>
                   <td className="num">{p.schools}</td>
                   <td className="actions">
                     <button className="secondary small" onClick={() => setEditing(p)}>
@@ -72,10 +74,15 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
     description: plan?.description ?? '',
     setup: plan ? koboToInput(plan.setup_fee_kobo) : '',
     perPupil: plan ? koboToInput(plan.per_pupil_year_kobo) : '',
+    planFee: plan ? koboToInput(plan.instalment_plan_fee_kobo) : '200',
     is_active: plan?.is_active ?? true,
     is_default: plan?.is_default ?? false,
   });
-  const prices = { setup: parseNairaToKobo(form.setup), perPupil: parseNairaToKobo(form.perPupil) };
+  const prices = {
+    setup: parseNairaToKobo(form.setup),
+    perPupil: parseNairaToKobo(form.perPupil),
+    planFee: parseNairaToKobo(form.planFee),
+  };
   const valid = Object.values(prices).every((v) => v !== null && v >= 0);
   const save = useMutation({
     mutationFn: async () => {
@@ -84,6 +91,7 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
         description: form.description,
         setup_fee_kobo: prices.setup ?? 0,
         per_pupil_year_kobo: prices.perPupil ?? 0,
+        instalment_plan_fee_kobo: prices.planFee ?? 0,
         is_active: form.is_active,
         is_default: form.is_default,
       };
@@ -121,6 +129,12 @@ function EditPlan({ plan, onClose }: { plan: Plan | null; onClose: () => void })
         </Field>
         <Field label="Per pupil (₦ per school year)" hint={termly !== null ? `Billed ${formatKobo(termly)} per pupil each term.` : undefined}>
           <input value={form.perPupil} onChange={set('perPupil')} inputMode="decimal" required />
+        </Field>
+        <Field
+          label="Per instalment plan (₦)"
+          hint="Charged to the school for each instalment plan made (a parent's choice or the bursar's), on its next termly bill. 0 to charge nothing."
+        >
+          <input value={form.planFee} onChange={set('planFee')} inputMode="decimal" required />
         </Field>
         <label className="checkbox">
           <input type="checkbox" checked={form.is_active} onChange={set('is_active')} disabled={plan?.is_default} />

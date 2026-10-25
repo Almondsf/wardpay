@@ -611,6 +611,41 @@ table.lines {
   font-size: 0.85rem;
 }
 
+.plan-choices {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.plan-choices ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.plan-choices li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.plan-parts {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+  display: grid;
+  gap: 8px;
+}
+
 .warn-text {
   color: var(--warn);
   font-weight: 600;

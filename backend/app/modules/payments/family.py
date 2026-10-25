@@ -21,8 +21,10 @@ from app.core.errors import DomainError, NotFound
 from app.core.http import RequestMeta
 from app.modules.audit.models import AuditAction
 from app.modules.audit.service import Actor, record
+from app.modules.fees import plan_offers
 from app.modules.fees.invoicing import paid_subquery, totals_subquery
 from app.modules.fees.models import Invoice
+from app.modules.fees.plan_offers import Offer
 from app.modules.fees.plans import plan_views
 from app.modules.fees.setup_service import MAX_AMOUNT_KOBO
 from app.modules.reports.fee_status import FeeBreakdown, fee_breakdowns, fee_targets
@@ -53,6 +55,7 @@ class FamilyChild:
     on_plan: bool
     account: VirtualAccount | None
     breakdown: FeeBreakdown
+    plan_offers: list[Offer]  # the school's instalment plans this child's bill can go on
 
 
 @dataclass(frozen=True)
@@ -112,6 +115,10 @@ def family_page(session: Session, found: Resolved) -> FamilyPage:
     ids = [s.id for s in students]
     owed = _owed(session, ids)
     breakdowns = fee_breakdowns(session, ids)
+    offered: dict[uuid.UUID, list[Offer]] = {}
+    for bill_offers in plan_offers.offers(session, ids).values():
+        for offer in bill_offers:
+            offered.setdefault(offer.student_id, []).append(offer)
     classes = (
         dict(
             session.execute(
@@ -141,7 +148,15 @@ def family_page(session: Session, found: Resolved) -> FamilyPage:
         school_name=school.name,
         card_payments=payment_account(session) is not None,
         children=[
-            FamilyChild(s.id, s.first_name, classes.get(s.id), *owed[s.id], accounts.get(s.id), breakdowns[s.id])
+            FamilyChild(
+                s.id,
+                s.first_name,
+                classes.get(s.id),
+                *owed[s.id],
+                accounts.get(s.id),
+                breakdowns[s.id],
+                offered.get(s.id, []),
+            )
             for s in students
         ],
         split_rule=school.family_split_rule,
@@ -268,3 +283,21 @@ def start_checkout(
     )
     session.commit()
     return intent
+
+
+def choose_plan(
+    session: Session, found: Resolved, invoice_id: uuid.UUID, template_id: uuid.UUID, meta: RequestMeta
+) -> None:
+    """A parent puts one of their children's bills on one of the school's plans, from the link."""
+    children = [s.id for s in _children(session, found.guardian_id)]
+    plan_offers.choose(
+        session,
+        invoice_id,
+        template_id,
+        school_id=found.school_id,
+        actor=Actor(user_id=None, label=f"guardian:{found.guardian_id} (payment link)"),
+        meta=meta,
+        created_by=None,
+        staff=False,
+        student_ids=children,
+    )

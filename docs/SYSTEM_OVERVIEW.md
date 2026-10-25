@@ -580,6 +580,28 @@ person; spending with the same payee and amount within 7 days. Kinds with nothin
 number of queries (staff names in one `IN` lookup, limited to the school). The proprietor's dashboard
 shows a line when anything is serious; the screen is Reports → Unusual activity.
 
+**School instalment plans** (`fees/plan_offers.py`, owner 2026-10-25). A school sets up its own plans
+(`PlanTemplate`: name; parts as a share in basis points and a day counted from the term's start, 2 to 12,
+adding to 100%; who may choose it: any parent, parents with nothing owed on the pupil's other bills, or
+staff only; an optional plan charge, fixed or a percentage up to 20%). `GET/POST /plan-templates`,
+`PUT /plan-templates/{id}` (`fees.view` / `fees.manage`). Editing a plan never changes plans already
+chosen. A term bill that's still owed, has no plan, and whose term hasn't ended or been closed is offered
+the plans its pupil may choose; parts whose day has passed fall due today (merged), and a plan with fewer
+than two parts left isn't offered. Parents see the offers on the family payment page and in the portal
+(`plan_offers` on each child or bill) and choose with `POST /public/pay/{token}/plan` (10 an hour per link,
+only their own children) or `POST /parent/invoices/{id}/plan`; staff see staff-only plans too
+(`GET /invoices/{id}/plan-offers`, `POST /invoices/{id}/plan/school-plan`, `invoices.issue`). Choosing adds
+the plan charge as a bill line ("Instalment plan charge (Pay in 3)", into the school's account like all
+fees), then an ordinary `PaymentPlan` (`template_id` set; `created_by` empty when the parent chose it), in
+one transaction under the bill's lock. Offers are two queries whatever the number of pupils.
+
+**WardPay's per-plan fee.** Each pricing plan has `instalment_plan_fee_kobo` (₦200 by default, set in
+Platform → Plans; owner 2026-10-25, to cover the extra reminders a plan sends). Every instalment plan made
+from 25 Oct 2026 on (a parent's choice or staff's, custom or from a school plan; not cancelled ones) is
+charged once, on the school's next termly WardPay bill ("Instalment plans made since the last bill",
+quantity × fee). Billing marks the plans with the bill (`subscription_invoice_id`, one `UPDATE … FROM`);
+voiding the bill releases them for the next one.
+
 **Writing off debt** (`fees/writeoffs.py`). Anyone with `payments.approve` asks
 (`POST /invoices/{id}/write-off`, amount up to what's owed, reason); only the proprietor
 (`debts.write_off`) approves or rejects (`POST /write-offs/{id}/approve|reject`), so two staff together
@@ -1287,6 +1309,7 @@ production.
 | Manual payments | `GET/POST /manual-payments`; `POST /manual-payments/{id}/approve`, `/reject` |
 | Accounting | `GET /accounting/accounts`, `PUT /accounting/accounts/{key}`; `GET /accounting/journal?start=&end=`; `POST /accounting/exports`, `GET /accounting/exports/{id}`, `GET /accounting/exports/{id}/download`; `GET /accounting/books`, `POST /accounting/terms/{id}/close`, `POST /accounting/books/reopen` |
 | Settlements | `GET /settlements?start=&end=`; `POST /settlements/refresh` |
+| School instalment plans | `GET/POST /plan-templates`, `PUT /plan-templates/{id}`; `GET /invoices/{id}/plan-offers`; `POST /invoices/{id}/plan/school-plan`; `POST /public/pay/{token}/plan`; `POST /parent/invoices/{id}/plan` |
 | Write-offs | `POST /invoices/{id}/write-off`; `GET /write-offs?status=`; `POST /write-offs/{id}/approve`, `/reject` |
 | Expenses | `GET/POST /expense-categories`, `PUT /expense-categories/{id}`; `GET/POST /expenses`; `POST /expenses/{id}/approve`, `/reject`, `/void`; `GET /reports/income-expenditure?start=&end=` |
 | Cash book | `GET /cash-book?start=&end=`; `GET/POST /cash-deposits`; `POST /cash-deposits/{id}/confirm`, `/reject`; `POST /cash-book/close` |

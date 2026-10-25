@@ -11,10 +11,10 @@ from app.core.db import get_db
 from app.core.errors import ERROR_RESPONSES
 from app.core.http import RequestMeta, request_meta
 from app.core.ratelimit import get_limiter
-from app.modules.fees import invoicing
+from app.modules.fees import invoicing, plan_offers
 from app.modules.fees.models import Invoice, InvoiceKind, LineKind
 from app.modules.fees.plans import PlanView, plan_views
-from app.modules.fees.router import PaymentPlanOut
+from app.modules.fees.router import PaymentPlanOut, PlanOfferOut, offer_out
 from app.modules.fees.setup_service import MAX_AMOUNT_KOBO
 from app.modules.payments import checkout, family, family_links
 from app.modules.payments import service as payment_service
@@ -118,6 +118,7 @@ class ParentInvoiceOut(BaseModel):
     balance_kobo: int
     status: str
     plan: PaymentPlanOut | None = None
+    plan_offers: list[PlanOfferOut] = Field(default_factory=list, description="The school's plans this bill can go on")
 
 
 class ParentLineOut(BaseModel):
@@ -268,10 +269,13 @@ def _child_out(child: portal.ChildOverview) -> ChildOut:
     )
 
 
-def _invoice_out(invoice: Invoice, total: int, paid: int, plan: PlanView | None = None) -> ParentInvoiceOut:
+def _invoice_out(
+    invoice: Invoice, total: int, paid: int, plan: PlanView | None = None, offers: list[plan_offers.Offer] | None = None
+) -> ParentInvoiceOut:
     amounts = invoicing.InvoiceAmounts(int(total), int(paid))
     return ParentInvoiceOut(
         plan=PaymentPlanOut.model_validate(plan) if plan else None,
+        plan_offers=[offer_out(o) for o in offers or []],
         id=invoice.id,
         number=invoice.number,
         kind=invoice.kind,
@@ -302,12 +306,16 @@ def child_account(
     overview = next(c for c in portal.household(db, ctx).children if c.student.id == student.id)
     invoices = db.execute(invoicing.invoices_query(student_id=student.id).where(Invoice.voided_at.is_(None))).all()
     plans = plan_views(db, [inv.id for inv, *_ in invoices])
+    offered = plan_offers.offers(db, [student.id])
     payments = [p for p, _ in db.execute(payment_service.payments_query(student_id=student.id).limit(100)).all()]
     ids = [p.id for p in payments]
     receipts, reversed_ = receipts_for_payments(db, ids), payment_service.reversed_ids(db, ids)
     return ChildAccountOut(
         child=_child_out(overview),
-        invoices=[_invoice_out(inv, total, paid, plans.get(inv.id)) for inv, _student, total, paid in invoices],
+        invoices=[
+            _invoice_out(inv, total, paid, plans.get(inv.id), offered.get(inv.id))
+            for inv, _student, total, paid in invoices
+        ],
         payments=[
             ParentPaymentOut(
                 id=p.id,
@@ -338,6 +346,32 @@ def invoice_detail(
             for line in invoice.lines
         ],
     )
+
+
+class ChoosePlanIn(BaseModel):
+    template_id: uuid.UUID
+
+
+@router.post(
+    "/invoices/{invoice_id}/plan",
+    response_model=ParentInvoiceDetailOut,
+    summary="Choose one of the school's instalment plans for this bill (its plan charge is added)",
+)
+def choose_plan(
+    invoice_id: uuid.UUID, body: ChoosePlanIn, ctx: ParentContext = Depends(get_parent), db: Session = Depends(get_db)
+) -> ParentInvoiceDetailOut:
+    portal.require_child_invoice(db, ctx, invoice_id)
+    plan_offers.choose(
+        db,
+        invoice_id,
+        body.template_id,
+        school_id=ctx.school_id,
+        actor=ctx.actor,
+        meta=ctx.meta,
+        created_by=None,
+        staff=False,
+    )
+    return invoice_detail(invoice_id, ctx, db)
 
 
 @router.post(

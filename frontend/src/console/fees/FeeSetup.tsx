@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { formatKobo, humanize, koboToInput, parseNairaToKobo } from '../../lib/format';
 import { Empty, ErrorAlert, Field, Loading, Modal, Notice, PageHeader } from '../../lib/ui';
 import { useClassLevels, useCurrentTerm, useSessions } from '../hooks';
+import { PlanTemplates } from './PlanTemplates';
 
 type FeeItem = Schemas['FeeItemOut'];
 type Discount = Schemas['DiscountOut'];
@@ -14,7 +15,7 @@ const CATEGORIES: Schemas['FeeCategory'][] = ['tuition', 'levy', 'service', 'mat
 
 export function FeeSetup() {
   const { can } = useAuth();
-  const [tab, setTab] = useState<'schedule' | 'items' | 'discounts'>('schedule');
+  const [tab, setTab] = useState<'schedule' | 'items' | 'discounts' | 'plans'>('schedule');
   return (
     <>
       <PageHeader title="Fees" subtitle="What the school charges, per class and term. Changes apply to invoices generated afterwards." />
@@ -37,15 +38,16 @@ export function FeeSetup() {
         {!can('invoices.issue') && <p className="hint">Only the bursar or the proprietor can add fees to bills.</p>}
       </section>
       <div className="tabs" role="tablist">
-        {(['schedule', 'items', 'discounts'] as const).map((t) => (
+        {(['schedule', 'items', 'discounts', 'plans'] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}>
-            {{ schedule: 'Fees per class', items: 'Fee items', discounts: 'Discounts' }[t]}
+            {{ schedule: 'Fees per class', items: 'Fee items', discounts: 'Discounts', plans: 'Instalment plans' }[t]}
           </button>
         ))}
       </div>
       {tab === 'schedule' && <Schedule />}
       {tab === 'items' && <FeeItems />}
       {tab === 'discounts' && <Discounts />}
+      {tab === 'plans' && <PlanTemplates />}
     </>
   );
 }

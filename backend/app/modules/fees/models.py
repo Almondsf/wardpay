@@ -31,6 +31,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base, Timestamped, UUIDPrimaryKey, enum_type
@@ -238,10 +239,16 @@ class PaymentPlan(TenantMixin, UUIDPrimaryKey, Base):
     paid_at_start_kobo: Mapped[int] = mapped_column(BigInteger)
     covered_kobo: Mapped[int] = mapped_column(BigInteger)  # the sum of the instalments
     note: Mapped[str] = mapped_column(String(300), default="")
-    created_by: Mapped[uuid.UUID | None] = mapped_column()
+    created_by: Mapped[uuid.UUID | None] = mapped_column()  # None: the parent chose it themselves
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancel_reason: Mapped[str | None] = mapped_column(String(300))
+    # One of the school's own plans (fees/plan_offers.py), when it came from one
+    template_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("plan_templates.id", ondelete="RESTRICT"))
+    # The WardPay bill that charged the school its per-plan fee (platform/billing.py)
+    subscription_invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("subscription_invoices.id", ondelete="SET NULL")
+    )
 
 
 class PlanInstalment(TenantMixin, UUIDPrimaryKey, Base):
@@ -293,3 +300,45 @@ class WriteOff(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     rejection_reason: Mapped[str] = mapped_column(String(300), default="")
     line_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoice_lines.id", ondelete="RESTRICT"))
+
+
+class PlanEligibility(enum.StrEnum):
+    ANYONE = "anyone"  # any parent can choose it
+    NO_OLD_DEBTS = "no_old_debts"  # only when nothing is owed on the pupil's other bills
+    STAFF_ONLY = "staff_only"  # parents don't see it; staff can put a family on it
+
+
+class PlanChargeKind(enum.StrEnum):
+    NONE = "none"
+    FIXED = "fixed"  # charge_value is kobo
+    PERCENT = "percent"  # charge_value is basis points of what's owed (250 = 2.5%)
+
+
+class PlanTemplate(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
+    """
+    One of the school's own instalment plans ("Pay in 3: 50% / 25% / 25%"), which parents can choose
+    themselves. Each part is a share of what's owed and a day counted from the start of the term. Editing
+    one never changes plans already chosen: those are copied into PaymentPlan when chosen.
+    """
+
+    __tablename__ = "plan_templates"
+    __table_args__ = (
+        UniqueConstraint("school_id", "name"),
+        CheckConstraint(
+            "(charge_kind = 'none' AND charge_value = 0) OR (charge_kind <> 'none' AND charge_value > 0)",
+            name="charge_valid",
+        ),
+        CheckConstraint("charge_kind <> 'percent' OR charge_value <= 2000", name="percent_at_most_20"),
+    )
+
+    name: Mapped[str] = mapped_column(String(80))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    eligibility: Mapped[PlanEligibility] = mapped_column(
+        enum_type(PlanEligibility, "plan_eligibility"), default=PlanEligibility.NO_OLD_DEBTS
+    )
+    charge_kind: Mapped[PlanChargeKind] = mapped_column(
+        enum_type(PlanChargeKind, "plan_charge_kind"), default=PlanChargeKind.NONE
+    )
+    charge_value: Mapped[int] = mapped_column(BigInteger, default=0)
+    # [{"percent_bp": 5000, "day": 0}, ...]: shares add up to 10000, days rise, 2 to 12 parts
+    parts: Mapped[list[dict[str, int]]] = mapped_column(JSONB)

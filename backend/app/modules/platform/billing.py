@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import Select, and_, case, func, select
+from sqlalchemy import Select, and_, case, func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Subquery
 
@@ -32,6 +32,7 @@ from app.core.sequences import reserve_platform
 from app.modules.accounts.deps import Principal
 from app.modules.audit.models import AuditAction
 from app.modules.audit.service import record
+from app.modules.fees.models import PaymentPlan
 from app.modules.schools.models import AcademicSession, School, SchoolStatus, Term
 from app.modules.students.models import Enrollment, Student, StudentStatus
 
@@ -94,14 +95,29 @@ class BillingRun:
     bills: list[DraftBill] = field(default_factory=list)
     already_billed: int = 0
     no_current_term: list[str] = field(default_factory=list)  # school names
+    cutoff: datetime = field(default_factory=lambda: datetime.now(UTC))  # instalment plans made up to here
 
     @property
     def total_kobo(self) -> int:
         return sum(b.total_kobo for b in self.bills)
 
 
-def draft_bills(session: Session) -> BillingRun:
-    """This term's bills for every active school, without saving anything. Five queries."""
+# The per-plan fee started here: plans made before it are never charged
+PLAN_FEE_FROM = datetime(2026, 10, 25, tzinfo=UTC)
+
+
+def _unbilled_plans(cutoff: datetime) -> Any:
+    """Instalment plans made up to `cutoff`, not yet on a WardPay bill and not cancelled."""
+    return (
+        PaymentPlan.subscription_invoice_id.is_(None),
+        PaymentPlan.cancelled_at.is_(None),
+        PaymentPlan.created_at >= PLAN_FEE_FROM,
+        PaymentPlan.created_at <= cutoff,
+    )
+
+
+def draft_bills(session: Session, cutoff: datetime | None = None) -> BillingRun:
+    """This term's bills for every active school, without saving anything. Six queries."""
     run = BillingRun(dry_run=True)
     plans = {p.id: p for p in session.scalars(select(Plan))}
     fallback = next((p for p in plans.values() if p.is_default), None)
@@ -142,6 +158,15 @@ def draft_bills(session: Session) -> BillingRun:
         .group_by(SubscriptionInvoice.school_id, SubscriptionInvoice.session_name, SubscriptionInvoice.term_number)
     ).all()
     billed_terms = {(s, name, n) for s, name, n, _ in history}
+    # Instalment plans made since each school's last bill: the per-plan fee (owner, 2026-10-25)
+    run.cutoff = cutoff or datetime.now(UTC)
+    plans_made = dict(
+        session.execute(
+            select(PaymentPlan.school_id, func.count())
+            .where(*_unbilled_plans(run.cutoff))
+            .group_by(PaymentPlan.school_id)
+        ).all()
+    )
     setup_paid = {s for s, _, _, setup in history if setup}
 
     for school_id, name, plan_id in schools:
@@ -165,6 +190,16 @@ def draft_bills(session: Session) -> BillingRun:
                     f"{term_label(session_name, number)}: pupils enrolled",
                     count,
                     termly(plan.per_pupil_year_kobo),
+                )
+            )
+        made = int(plans_made.get(school_id, 0))
+        if made and plan.instalment_plan_fee_kobo:
+            lines.append(
+                DraftLine(
+                    SubscriptionLineKind.INSTALMENT_PLANS,
+                    "Instalment plans made since the last bill",
+                    made,
+                    plan.instalment_plan_fee_kobo,
                 )
             )
         if lines:
@@ -214,6 +249,23 @@ def generate(session: Session, admin: Principal, *, dry_run: bool, today: date |
     session.add_all(invoices)
     session.flush()
     session.add_all(lines)
+    session.flush()
+    # The plans just charged are marked with the bill that charged them, so they're never charged twice
+    charged = [
+        i.id
+        for i, b in zip(invoices, run.bills, strict=True)
+        if any(ln.kind == SubscriptionLineKind.INSTALMENT_PLANS for ln in b.lines)
+    ]
+    if charged:
+        session.execute(
+            update(PaymentPlan)
+            .where(
+                PaymentPlan.school_id == SubscriptionInvoice.school_id,
+                SubscriptionInvoice.id.in_(charged),
+                *_unbilled_plans(run.cutoff),
+            )
+            .values(subscription_invoice_id=SubscriptionInvoice.id)
+        )
     for invoice in invoices:  # each school's proprietor is emailed their bill once this commits
         outbox.enqueue(session, EMAIL_TASK, {"invoice_id": str(invoice.id)})
     record(
@@ -424,6 +476,12 @@ def void(session: Session, admin: Principal, invoice_id: uuid.UUID, reason: str)
     if paid:
         raise Conflict("Payments have been recorded on this invoice, so it can't be voided.")
     invoice.voided_at, invoice.void_reason = datetime.now(UTC), reason.strip()[:300]
+    # Plans it charged for go back to waiting for the next bill
+    session.execute(
+        update(PaymentPlan)
+        .where(PaymentPlan.subscription_invoice_id == invoice_id)
+        .values(subscription_invoice_id=None)
+    )
     for school in (None, invoice.school_id):
         record(
             session,

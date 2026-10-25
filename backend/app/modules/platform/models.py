@@ -45,6 +45,7 @@ class Plan(UUIDPrimaryKey, Timestamped, Base):
     __tablename__ = "plans"
     __table_args__ = (
         CheckConstraint("setup_fee_kobo >= 0 AND per_pupil_year_kobo >= 0", name="prices_not_negative"),
+        CheckConstraint("instalment_plan_fee_kobo >= 0", name="plan_fee_not_negative"),
         # Exactly one default plan (for schools without one of their own)
         Index("uq_plans_one_default", "is_default", unique=True, postgresql_where=text("is_default")),
     )
@@ -53,6 +54,9 @@ class Plan(UUIDPrimaryKey, Timestamped, Base):
     description: Mapped[str] = mapped_column(String(300), default="")
     setup_fee_kobo: Mapped[int] = mapped_column(BigInteger)
     per_pupil_year_kobo: Mapped[int] = mapped_column(BigInteger)
+    # Charged to the school for each instalment plan made (owner, 2026-10-25: about ₦200, for the extra
+    # reminders a plan sends); billed on the school's next termly bill
+    instalment_plan_fee_kobo: Mapped[int] = mapped_column(BigInteger, default=20_000, server_default="20000")
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -61,6 +65,7 @@ class SubscriptionLineKind(enum.StrEnum):
     SETUP = "setup"  # once, on a school's first bill
     LICENCE = "licence"  # no longer billed (owner, 2026-10-23); kept so older bills still read
     PUPILS = "pupils"  # a third of the yearly per-pupil fee, for the pupils enrolled that term
+    INSTALMENT_PLANS = "instalment_plans"  # the per-plan fee, for plans made since the last bill
     DISCOUNT = "discount"  # taken off by a platform admin (e.g. the set-up fee waived): the only negative line
 
 

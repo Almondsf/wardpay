@@ -15,8 +15,19 @@ from app.modules.accounts.permissions import Capability
 from app.modules.schools.models import Term
 from app.modules.students.models import Student
 
-from . import charges, invoicing, plans, setup_service, writeoffs
-from .models import DiscountKind, DiscountRule, FeeCategory, Invoice, InvoiceKind, LineKind, WriteOffStatus
+from . import charges, invoicing, plan_offers, plans, setup_service, writeoffs
+from .models import (
+    DiscountKind,
+    DiscountRule,
+    FeeCategory,
+    Invoice,
+    InvoiceKind,
+    LineKind,
+    PlanChargeKind,
+    PlanEligibility,
+    PlanTemplate,
+    WriteOffStatus,
+)
 
 router = APIRouter(tags=["fees"], responses=ERROR_RESPONSES)
 FEES_VIEW = Depends(require(Capability.FEES_VIEW))
@@ -946,3 +957,144 @@ def reject_write_off(
 ) -> WriteOffOut:
     writeoffs.reject(db, ctx, write_off_id, body.reason)
     return _one(db, write_off_id)
+
+
+# --- The school's own instalment plans ---------------------------------------------------------------
+
+
+class PlanPart(BaseModel):
+    percent_bp: Annotated[int, Field(gt=0, le=10_000, description="Share of the bill in basis points (2500 = 25%)")]
+    day: Annotated[int, Field(ge=0, le=plan_offers.MAX_DAY, description="Days after the term starts")]
+
+
+class PlanTemplateIn(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+    is_active: bool = True
+    eligibility: PlanEligibility = PlanEligibility.NO_OLD_DEBTS
+    charge_kind: PlanChargeKind = PlanChargeKind.NONE
+    charge_value: Annotated[int, Field(ge=0, le=setup_service.MAX_AMOUNT_KOBO)] = Field(
+        default=0, description="Kobo for a fixed charge; basis points (250 = 2.5%) for a percentage"
+    )
+    parts: list[PlanPart] = Field(min_length=2, max_length=12)
+
+
+class PlanTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    is_active: bool
+    eligibility: PlanEligibility
+    charge_kind: PlanChargeKind
+    charge_value: int
+    parts: list[PlanPart]
+
+
+class OfferInstalmentOut(BaseModel):
+    due_date: date
+    amount_kobo: int
+
+
+class PlanOfferOut(BaseModel):
+    invoice_id: uuid.UUID
+    template_id: uuid.UUID
+    name: str
+    charge_kobo: int = Field(description="The plan charge added to the bill if chosen")
+    total_kobo: int = Field(description="What's owed plus the charge")
+    instalments: list[OfferInstalmentOut]
+
+
+class ChooseOfferIn(BaseModel):
+    template_id: uuid.UUID
+
+
+def offer_out(offer: plan_offers.Offer) -> PlanOfferOut:
+    return PlanOfferOut(
+        invoice_id=offer.invoice_id,
+        template_id=offer.template_id,
+        name=offer.name,
+        charge_kobo=offer.charge_kobo,
+        total_kobo=offer.total_kobo,
+        instalments=[OfferInstalmentOut(due_date=d, amount_kobo=a) for d, a in offer.instalments],
+    )
+
+
+def _template_out(t: PlanTemplate) -> PlanTemplateOut:
+    return PlanTemplateOut.model_validate(t)
+
+
+@router.get("/plan-templates", response_model=list[PlanTemplateOut], summary="The school's instalment plans")
+def list_plan_templates(ctx: StaffContext = FEES_VIEW, db: Session = Depends(get_db)) -> list[PlanTemplateOut]:
+    return [_template_out(t) for t in plan_offers.templates(db)]
+
+
+@router.post(
+    "/plan-templates",
+    response_model=PlanTemplateOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an instalment plan parents can choose",
+)
+def add_plan_template(
+    body: PlanTemplateIn, ctx: StaffContext = FEES_MANAGE, db: Session = Depends(get_db)
+) -> PlanTemplateOut:
+    return _template_out(_save_template(db, ctx, None, body))
+
+
+@router.put(
+    "/plan-templates/{template_id}",
+    response_model=PlanTemplateOut,
+    summary="Change an instalment plan (plans already chosen don't change)",
+)
+def change_plan_template(
+    template_id: uuid.UUID, body: PlanTemplateIn, ctx: StaffContext = FEES_MANAGE, db: Session = Depends(get_db)
+) -> PlanTemplateOut:
+    return _template_out(_save_template(db, ctx, template_id, body))
+
+
+def _save_template(db: Session, ctx: StaffContext, template_id: uuid.UUID | None, body: PlanTemplateIn) -> PlanTemplate:
+    return plan_offers.save_template(
+        db,
+        ctx,
+        template_id,
+        name=body.name,
+        is_active=body.is_active,
+        eligibility=body.eligibility,
+        charge_kind=body.charge_kind,
+        charge_value=body.charge_value,
+        parts=[(p.percent_bp, p.day) for p in body.parts],
+    )
+
+
+@router.get(
+    "/invoices/{invoice_id}/plan-offers",
+    response_model=list[PlanOfferOut],
+    summary="The school's plans this bill can go on, with dates and amounts (staff see staff-only plans too)",
+)
+def bill_plan_offers(
+    invoice_id: uuid.UUID, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+) -> list[PlanOfferOut]:
+    invoice = get_or_404(db, Invoice, invoice_id, label="Invoice")
+    found = plan_offers.offers(db, [invoice.student_id], staff=True).get(invoice.id, [])
+    return [offer_out(o) for o in found]
+
+
+@router.post(
+    "/invoices/{invoice_id}/plan/school-plan",
+    response_model=InvoiceOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Put a bill on one of the school's plans (its plan charge is added to the bill)",
+)
+def choose_school_plan(
+    invoice_id: uuid.UUID, body: ChooseOfferIn, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+) -> InvoiceOut:
+    plan_offers.choose(
+        db,
+        invoice_id,
+        body.template_id,
+        school_id=ctx.school_id,
+        actor=ctx.actor,
+        meta=ctx.meta,
+        created_by=ctx.user.id,
+        staff=True,
+    )
+    return _invoice_out(db, invoice_id)

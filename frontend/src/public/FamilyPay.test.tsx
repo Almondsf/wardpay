@@ -31,6 +31,7 @@ const page = {
         { name: 'PTA', billed_kobo: 300_000, paid_kobo: 200_000, left_kobo: 100_000, status: 'Part paid' },
       ],
       earlier_left_kobo: 0,
+      plan_offers: [],
     },
     {
       student_id: 's2',
@@ -43,6 +44,7 @@ const page = {
       bank_name: null,
       fees: [{ name: 'Tuition', billed_kobo: 18_500_000, paid_kobo: 0, left_kobo: 18_500_000, status: 'Unpaid' }],
       earlier_left_kobo: 2_000_000,
+      plan_offers: [],
     },
     {
       student_id: 's3',
@@ -55,6 +57,7 @@ const page = {
       bank_name: 'Wema Bank',
       fees: [{ name: 'Tuition', billed_kobo: 20_000_000, paid_kobo: 20_000_000, left_kobo: 0, status: 'Paid' }],
       earlier_left_kobo: 0,
+      plan_offers: [],
     },
   ],
 };
@@ -196,5 +199,39 @@ describe('family payment page', () => {
     expect(await screen.findByLabelText('Payment link')).toHaveValue(first.url);
     await userEvent.click(screen.getByRole('button', { name: 'Replace link' }));
     await vi.waitFor(() => expect(screen.getByLabelText('Payment link')).toHaveValue(second.url));
+  });
+
+  it('lets a parent spread a child’s fees with one of the school’s plans', async () => {
+    const offer = {
+      invoice_id: 'inv1',
+      template_id: 'pt1',
+      name: 'Pay in 3',
+      charge_kobo: 150_000,
+      total_kobo: 15_650_000,
+      instalments: [
+        { due_date: '2030-01-10', amount_kobo: 7_825_000 },
+        { due_date: '2030-02-10', amount_kobo: 3_912_500 },
+        { due_date: '2030-03-10', amount_kobo: 3_912_500 },
+      ],
+    };
+    const withOffer = { ...page, children: [{ ...page.children[0]!, plan_offers: [offer] }, ...page.children.slice(1)] };
+    const onPlan = {
+      ...page,
+      children: [{ ...page.children[0]!, on_plan: true, owed_kobo: 15_650_000, suggested_kobo: 7_825_000 }, ...page.children.slice(1)],
+    };
+    const calls = mockApi({
+      [`GET /api/v1/public/pay/${TOKEN}`]: () => json(withOffer),
+      [`POST /api/v1/public/pay/${TOKEN}/plan`]: () => json(onPlan),
+    });
+    renderPage();
+    const ada = within(await screen.findByRole('group', { name: "Spread Ada's fees" }));
+    expect(ada.getByText('Pay in 3')).toBeInTheDocument();
+    expect(ada.getByText(/Plan charge ₦1,500.00/)).toBeInTheDocument();
+    await userEvent.click(ada.getByRole('button', { name: 'Choose' }));
+    await userEvent.click(ada.getByRole('button', { name: 'Yes, choose Pay in 3' }));
+    const post = await vi.waitFor(() => calls.find((c) => c.url.endsWith('/plan'))!);
+    expect(await post.json()).toEqual({ invoice_id: 'inv1', template_id: 'pt1' });
+    expect(await screen.findByText(/Paying in instalments: ₦78,250.00 is due next/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: "Spread Ada's fees" })).not.toBeInTheDocument();
   });
 });

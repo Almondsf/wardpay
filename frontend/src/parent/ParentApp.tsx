@@ -11,7 +11,7 @@ import { PlanSchedule } from '../lib/PlanSchedule';
 import { INVOICE_KIND_LABELS, formatDate, formatKobo, humanize, parseNairaToKobo } from '../lib/format';
 import { BackLink, Empty, ErrorAlert, Field, Loading, Modal, StatusBadge, Tabs } from '../lib/ui';
 import { ParentAuthProvider, useParentAuth } from './ParentAuth';
-import { FamilyPayment } from '../public/FamilyPay';
+import { FamilyPayment, planKey } from '../public/FamilyPay';
 import { ParentLogin } from './ParentLogin';
 
 type Child = Schemas['ChildOut'];
@@ -302,6 +302,7 @@ function PayByCard({ child, onClose }: { child: Child; onClose: () => void }) {
 
 /** Pay for all the parent's children at once: the same page as their family payment link. */
 function PayAll() {
+  const queryClient = useQueryClient();
   const family = useQuery({
     queryKey: ['parent-family'],
     staleTime: 0,
@@ -313,9 +314,19 @@ function PayAll() {
     <>
       <BackLink to="/parent">All children</BackLink>
       <FamilyPayment
+        key={planKey(family.data)}
         data={family.data}
         checkout={async (body) => unwrap(await api.POST('/api/v1/parent/family/checkout', { body }))}
         preview={async (total) => unwrap(await api.POST('/api/v1/parent/family/split', { body: { total_kobo: total } }))}
+        choosePlan={async (offer) =>
+          unwrap(
+            await api.POST('/api/v1/parent/invoices/{invoice_id}/plan', {
+              params: { path: { invoice_id: offer.invoice_id } },
+              body: { template_id: offer.template_id },
+            }),
+          )
+        }
+        onPlanChosen={() => void queryClient.invalidateQueries({ queryKey: ['parent-family'] })}
       />
     </>
   );

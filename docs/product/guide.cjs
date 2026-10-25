@@ -10,7 +10,7 @@ const {
 } = require('docx');
 
 const BRAND = 'WardPay';
-const UPDATED = '24 October 2026';
+const UPDATED = '25 October 2026';
 const GREEN = '0F5132';
 const LIGHT = 'E8F3EE';
 
@@ -334,6 +334,24 @@ const SECTIONS = [
         ],
       },
       {
+        name: 'The school’s own instalment plans',
+        who: 'Bursar, school admin, proprietor set them up; parents choose them',
+        purpose: 'Plans such as “Pay in 3” that parents can choose for themselves, so they can spread fees without calling the bursary.',
+        steps: [
+          'Go to Setup → Fees → Instalment plans and press Add plan.',
+          'Give it a name parents will see (for example Pay in 3). For each payment, set its share of the bill and how many days after the term starts it is due; the shares must add up to 100%.',
+          'Choose who can choose it: any parent, parents with nothing owed from before, or only staff.',
+          'Optionally add a plan charge (a fixed amount or a percentage, up to 20%) to cover the extra payment charges. It goes on the bill when a parent chooses the plan.',
+          'Press Save plan. Use Switch off to stop offering a plan; families already on it keep it.',
+        ],
+        notes: [
+          'Parents see the plans on their payment link and in the portal, with the exact dates and amounts, and choose with two taps.',
+          'Payments whose day has already passed fall due straight away. Plans are not offered once a term has ended or been closed.',
+          'Staff can put a family on any plan, including staff-only ones: open the bill and press Use a school plan.',
+          `${BRAND} charges the school a small fee for each instalment plan made, on its next termly ${BRAND} bill.`,
+        ],
+      },
+      {
         name: 'Writing off debt',
         who: 'Bursar and school admin ask; the proprietor approves',
         purpose: 'Stop chasing money the school won’t collect (a family that left owing, a hardship case). Only the proprietor can approve, so two staff together can’t clear a debt.',
@@ -643,6 +661,16 @@ const SECTIONS = [
         ],
       },
       {
+        name: 'Spreading the fees with a school plan',
+        who: 'Parents',
+        purpose: 'Pay a child’s fees in parts on dates the school has set, instead of all at once.',
+        steps: [
+          'On the payment link (or Pay for all your children in the portal), look under the child for “Can’t pay it all at once?”.',
+          'Each plan shows what is due and when, and any plan charge. Press Choose, then Yes, choose ….',
+          'The page then asks only for the first payment. Reminders follow the plan’s dates.',
+        ],
+      },
+      {
         name: 'Messages and my data',
         who: 'Parents',
         purpose: 'Choose whether to get bill messages and reminders, and see or take away your data.',
@@ -680,7 +708,7 @@ const SECTIONS = [
         steps: [
           'Go to Billing and press Bill this term; Preview, then Send … bills. A school is never billed twice for a term.',
           'On a bill: Record payment (a bank transfer), Adjust (waive the set-up fee or give a discount), Change due date, Void, or Download PDF.',
-          'Go to Plans to set the set-up fee and the per-pupil fee, and move a school to another plan.',
+          'Go to Plans to set the set-up fee, the per-pupil fee and the fee per instalment plan (₦200 to start), and move a school to another plan.',
         ],
       },
       {
@@ -698,6 +726,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['25 Oct 2026', 'The school’s own instalment plans: set up by staff, chosen by parents; the per-plan fee on WardPay bills.'],
   ['24 Oct 2026', 'The journal and the end-of-session pack are now prepared in the background, then download by themselves.'],
   ['24 Oct 2026', 'First edition: every feature, what it is for and how to use it.'],
 ];

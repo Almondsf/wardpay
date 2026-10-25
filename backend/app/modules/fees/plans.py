@@ -26,11 +26,12 @@ from sqlalchemy.sql.selectable import CTE
 
 from app.core.clock import lagos_today
 from app.core.errors import Conflict, DomainError
+from app.core.http import RequestMeta
 from app.core.money import format_naira
 from app.core.repo import get_or_404
 from app.modules.accounts.deps import StaffContext
 from app.modules.audit.models import AuditAction
-from app.modules.audit.service import record
+from app.modules.audit.service import Actor, record
 
 from .ledger import paid_subquery
 from .models import Invoice, PaymentPlan, PlanInstalment
@@ -181,7 +182,35 @@ def create_plan(
     instalments: list[tuple[date, int]],
     note: str = "",
 ) -> PlanView:
+    """A plan agreed by staff (any dates and amounts that add up to what's owed)."""
     invoice = get_or_404(session, Invoice, invoice_id, label="Invoice", lock=True)
+    add_plan(
+        session,
+        invoice,
+        instalments,
+        note=note,
+        created_by=ctx.user.id,
+        actor=ctx.actor,
+        meta=ctx.meta,
+        school_id=ctx.school_id,
+    )
+    session.commit()
+    return plan_views(session, [invoice.id])[invoice.id]
+
+
+def add_plan(
+    session: Session,
+    invoice: Invoice,
+    instalments: list[tuple[date, int]],
+    *,
+    note: str,
+    created_by: uuid.UUID | None,
+    actor: Actor,
+    meta: RequestMeta | None,
+    school_id: uuid.UUID,
+    template_id: uuid.UUID | None = None,
+) -> PaymentPlan:
+    """Check and save a plan on a locked bill, staff's or a parent's choice. The caller commits."""
     if invoice.voided_at is not None:
         raise Conflict("This bill was voided.")
     if session.scalar(
@@ -215,7 +244,8 @@ def create_plan(
         paid_at_start_kobo=amounts.paid_kobo,
         covered_kobo=owed,
         note=note.strip()[:300],
-        created_by=ctx.user.id,
+        created_by=created_by,
+        template_id=template_id,
     )
     session.add(plan)
     session.flush()
@@ -226,18 +256,18 @@ def create_plan(
     record(
         session,
         AuditAction.PAYMENT_PLAN_CREATED,
-        school_id=ctx.school_id,
-        actor=ctx.actor,
-        meta=ctx.meta,
+        school_id=school_id,
+        actor=actor,
+        meta=meta,
         target=invoice,
         changes={
             "number": invoice.number,
             "covered_kobo": owed,
             "instalments": [{"due": d.isoformat(), "amount_kobo": a} for d, a in instalments],
+            **({"school_plan": str(template_id)} if template_id else {}),
         },
     )
-    session.commit()
-    return plan_views(session, [invoice.id])[invoice.id]
+    return plan
 
 
 def cancel_plan(session: Session, ctx: StaffContext, invoice_id: uuid.UUID, reason: str) -> None:

@@ -18,6 +18,7 @@ from app.core.ratelimit import get_limiter
 from app.core.tenancy import scope_to_school
 from app.modules.accounts.deps import StaffContext, require
 from app.modules.accounts.permissions import Capability
+from app.modules.fees.router import PlanOfferOut, offer_out
 from app.modules.fees.setup_service import MAX_AMOUNT_KOBO
 from app.modules.reports.router import FeeLineOut, breakdown_out
 from app.modules.schools.models import FamilySplitRule, School
@@ -44,6 +45,7 @@ class FamilyChildOut(BaseModel):
     bank_name: str | None
     fees: list[FeeLineOut] = Field(description="This term's fees one by one, in bill order")
     earlier_left_kobo: int = Field(description="Still owed from earlier terms")
+    plan_offers: list[PlanOfferOut] = Field(description="The school's instalment plans the parent can choose")
 
 
 class FamilyPageOut(BaseModel):
@@ -140,10 +142,32 @@ def page_out(page: family.FamilyPage) -> FamilyPageOut:
                 bank_name=c.account.bank_name if c.account else None,
                 fees=breakdown_out(c.breakdown).fees,
                 earlier_left_kobo=c.breakdown.earlier_left_kobo,
+                plan_offers=[offer_out(o) for o in c.plan_offers],
             )
             for c in page.children
         ],
     )
+
+
+class FamilyPlanIn(BaseModel):
+    invoice_id: uuid.UUID
+    template_id: uuid.UUID
+
+
+@public_router.post(
+    "/{token}/plan",
+    response_model=FamilyPageOut,
+    summary="Choose one of the school's instalment plans for a child's bill (its plan charge is added)",
+)
+def family_choose_plan(
+    body: FamilyPlanIn,
+    found: family_links.Resolved = Depends(_link),
+    db: Session = Depends(get_db),
+    meta: RequestMeta = Depends(request_meta),
+) -> FamilyPageOut:
+    get_limiter().hit("family-plan:link", "10/hour", str(found.link_id))
+    family.choose_plan(db, found, body.invoice_id, body.template_id, meta)
+    return page_out(family.family_page(db, found))
 
 
 @public_router.post(

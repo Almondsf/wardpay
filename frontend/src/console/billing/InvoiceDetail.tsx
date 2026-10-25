@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { INVOICE_KIND_LABELS, formatDate, formatDateTime, formatKobo, lagosToday, parseNairaToKobo } from '../../lib/format';
 import { PlanSchedule, splitEvenly, stepDates } from '../../lib/PlanSchedule';
 import { BackLink, ErrorAlert, Field, Loading, Modal, PageHeader, StatusBadge, fieldError } from '../../lib/ui';
+import { describeInstalments } from '../../public/PlanChoices';
 
 type Invoice = Schemas['InvoiceOut'];
 
@@ -25,7 +26,13 @@ export function InvoiceDetail() {
     queryKey: ['invoice', invoiceId],
     queryFn: async () => unwrap(await api.GET('/api/v1/invoices/{invoice_id}', { params: { path: { invoice_id: invoiceId } } })),
   });
-  const [dialog, setDialog] = useState<'charge' | 'adjust' | 'void' | 'plan' | 'cancel-plan' | 'write-off' | null>(null);
+  const [dialog, setDialog] = useState<'charge' | 'adjust' | 'void' | 'plan' | 'school-plan' | 'cancel-plan' | 'write-off' | null>(null);
+  const offers = useQuery({
+    queryKey: ['plan-offers', invoiceId],
+    enabled: issue,
+    queryFn: async () =>
+      unwrap(await api.GET('/api/v1/invoices/{invoice_id}/plan-offers', { params: { path: { invoice_id: invoiceId } } })),
+  });
 
   if (invoice.isPending) return <Loading />;
   if (invoice.isError) return <ErrorAlert error={invoice.error} />;
@@ -121,9 +128,16 @@ export function InvoiceDetail() {
                 Cancel plan
               </button>
             ) : (
-              <button className="secondary small" onClick={() => setDialog('plan')}>
-                Pay in instalments
-              </button>
+                <>
+                  {(offers.data?.length ?? 0) > 0 && (
+                    <button className="secondary small" onClick={() => setDialog('school-plan')}>
+                      Use a school plan
+                    </button>
+                  )}{' '}
+                  <button className="secondary small" onClick={() => setDialog('plan')}>
+                    Pay in instalments
+                  </button>
+                </>
             ))}
           </div>
           {i.plan ? (
@@ -145,6 +159,7 @@ export function InvoiceDetail() {
       {dialog === 'void' && <VoidInvoice invoice={i} onClose={() => setDialog(null)} />}
       {dialog === 'write-off' && <WriteOff invoice={i} approves={can('debts.write_off')} onClose={() => setDialog(null)} />}
       {dialog === 'plan' && <NewPlan invoice={i} onClose={() => setDialog(null)} />}
+      {dialog === 'school-plan' && <SchoolPlan invoice={i} offers={offers.data ?? []} onClose={() => setDialog(null)} />}
       {dialog === 'cancel-plan' && <CancelPlan invoice={i} onClose={() => setDialog(null)} />}
       {(dialog === 'charge' || dialog === 'adjust') && <AddLine invoice={i} kind={dialog === 'charge' ? 'fee' : 'adjustment'} onClose={() => setDialog(null)} />}
     </>
@@ -305,6 +320,56 @@ function WriteOff({ invoice, approves, onClose }: { invoice: Invoice; approves: 
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** Put the bill on one of the school's own plans (staff also see the staff-only ones). */
+function SchoolPlan({ invoice, offers, onClose }: { invoice: Invoice; offers: Schemas['PlanOfferOut'][]; onClose: () => void }) {
+  const refresh = useRefresh(invoice);
+  const queryClient = useQueryClient();
+  const [chosen, setChosen] = useState(offers[0]?.template_id ?? '');
+  const offer = offers.find((o) => o.template_id === chosen);
+  const save = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST('/api/v1/invoices/{invoice_id}/plan/school-plan', {
+          params: { path: { invoice_id: invoice.id } },
+          body: { template_id: chosen },
+        }),
+      ),
+    onSuccess: (data) => {
+      refresh(data);
+      void queryClient.invalidateQueries({ queryKey: ['plan-offers', invoice.id] });
+      onClose();
+    },
+  });
+  return (
+    <Modal title="Use a school plan" onClose={onClose}>
+      <ErrorAlert error={save.error} />
+      <Field label="Plan">
+        <select value={chosen} onChange={(e) => setChosen(e.target.value)}>
+          {offers.map((o) => (
+            <option key={o.template_id} value={o.template_id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {offer && (
+        <>
+          <p className="small">{describeInstalments(offer)}</p>
+          {offer.charge_kobo > 0 && <p className="small muted">A plan charge of {formatKobo(offer.charge_kobo)} is added to the bill.</p>}
+        </>
+      )}
+      <div className="row end">
+        <button type="button" className="secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button onClick={() => save.mutate()} disabled={!offer || save.isPending}>
+          Use this plan
+        </button>
+      </div>
     </Modal>
   );
 }

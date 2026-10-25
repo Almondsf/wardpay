@@ -1049,6 +1049,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invoices/{invoice_id}/plan-offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The school's plans this bill can go on, with dates and amounts (staff see staff-only plans too) */
+        get: operations["fees_bill_plan_offers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invoices/{invoice_id}/plan/cancel": {
         parameters: {
             query?: never;
@@ -1060,6 +1077,23 @@ export interface paths {
         put?: never;
         /** End a bill's payment plan */
         post: operations["fees_cancel_payment_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invoices/{invoice_id}/plan/school-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Put a bill on one of the school's plans (its plan charge is added to the bill) */
+        post: operations["fees_choose_school_plan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1424,6 +1458,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parent/invoices/{invoice_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose one of the school's instalment plans for this bill (its plan charge is added) */
+        post: operations["parent_choose_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parent/my-data": {
         parameters: {
             query?: never;
@@ -1659,6 +1710,41 @@ export interface paths {
         put?: never;
         /** Reverse a payment recorded in error (adds a negative entry; nothing is deleted) */
         post: operations["payments_reverse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The school's instalment plans */
+        get: operations["fees_list_plan_templates"];
+        put?: never;
+        /** Add an instalment plan parents can choose */
+        post: operations["fees_add_plan_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change an instalment plan (plans already chosen don't change) */
+        put: operations["fees_change_plan_template"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2206,6 +2292,23 @@ export interface paths {
         put?: never;
         /** Pay for several children at once (card, transfer or USSD), with the amount chosen per child */
         post: operations["public_family_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/pay/{token}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose one of the school's instalment plans for a child's bill (its plan charge is added) */
+        post: operations["public_family_choose_plan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4033,6 +4136,22 @@ export interface components {
             /** Student Ids */
             student_ids: string[];
         };
+        /** ChooseOfferIn */
+        ChooseOfferIn: {
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+        };
+        /** ChoosePlanIn */
+        ChoosePlanIn: {
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+        };
         /** ChooseSchoolIn */
         ChooseSchoolIn: {
             /**
@@ -4696,6 +4815,11 @@ export interface components {
             /** Owed Kobo */
             owed_kobo: number;
             /**
+             * Plan Offers
+             * @description The school's instalment plans the parent can choose
+             */
+            plan_offers: components["schemas"]["PlanOfferOut"][];
+            /**
              * Student Id
              * Format: uuid
              */
@@ -4755,6 +4879,19 @@ export interface components {
              * Format: uuid
              */
             student_id: string;
+        };
+        /** FamilyPlanIn */
+        FamilyPlanIn: {
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
         };
         /** FamilyShareOut */
         FamilyShareOut: {
@@ -5666,6 +5803,16 @@ export interface components {
             /** Fee Item Id */
             fee_item_id?: string | null;
         };
+        /** OfferInstalmentOut */
+        OfferInstalmentOut: {
+            /** Amount Kobo */
+            amount_kobo: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+        };
         /** OnboardingOut */
         OnboardingOut: {
             /** Url */
@@ -5900,6 +6047,11 @@ export interface components {
             /** Paid Kobo */
             paid_kobo: number;
             plan?: components["schemas"]["PaymentPlanOut"] | null;
+            /**
+             * Plan Offers
+             * @description The school's plans this bill can go on
+             */
+            plan_offers?: components["schemas"]["PlanOfferOut"][];
             /** Status */
             status: string;
             /** Total Kobo */
@@ -5927,6 +6079,11 @@ export interface components {
             /** Paid Kobo */
             paid_kobo: number;
             plan?: components["schemas"]["PaymentPlanOut"] | null;
+            /**
+             * Plan Offers
+             * @description The school's plans this bill can go on
+             */
+            plan_offers?: components["schemas"]["PlanOfferOut"][];
             /** Status */
             status: string;
             /** Total Kobo */
@@ -6198,6 +6355,96 @@ export interface components {
             /** Transactions */
             transactions: number;
         };
+        /**
+         * PlanChargeKind
+         * @enum {string}
+         */
+        PlanChargeKind: "none" | "fixed" | "percent";
+        /**
+         * PlanEligibility
+         * @enum {string}
+         */
+        PlanEligibility: "anyone" | "no_old_debts" | "staff_only";
+        /** PlanOfferOut */
+        PlanOfferOut: {
+            /**
+             * Charge Kobo
+             * @description The plan charge added to the bill if chosen
+             */
+            charge_kobo: number;
+            /** Instalments */
+            instalments: components["schemas"]["OfferInstalmentOut"][];
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /**
+             * Total Kobo
+             * @description What's owed plus the charge
+             */
+            total_kobo: number;
+        };
+        /** PlanPart */
+        PlanPart: {
+            /**
+             * Day
+             * @description Days after the term starts
+             */
+            day: number;
+            /**
+             * Percent Bp
+             * @description Share of the bill in basis points (2500 = 25%)
+             */
+            percent_bp: number;
+        };
+        /** PlanTemplateIn */
+        PlanTemplateIn: {
+            /** @default none */
+            charge_kind?: components["schemas"]["PlanChargeKind"];
+            /**
+             * Charge Value
+             * @description Kobo for a fixed charge; basis points (250 = 2.5%) for a percentage
+             * @default 0
+             */
+            charge_value?: number;
+            /** @default no_old_debts */
+            eligibility?: components["schemas"]["PlanEligibility"];
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active?: boolean;
+            /** Name */
+            name: string;
+            /** Parts */
+            parts: components["schemas"]["PlanPart"][];
+        };
+        /** PlanTemplateOut */
+        PlanTemplateOut: {
+            charge_kind: components["schemas"]["PlanChargeKind"];
+            /** Charge Value */
+            charge_value: number;
+            eligibility: components["schemas"]["PlanEligibility"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Parts */
+            parts: components["schemas"]["PlanPart"][];
+        };
         /** PlatformOverviewOut */
         PlatformOverviewOut: {
             /** Payments This Month */
@@ -6238,6 +6485,11 @@ export interface components {
              */
             description?: string;
             /**
+             * Instalment Plan Fee Kobo
+             * @default 20000
+             */
+            instalment_plan_fee_kobo?: number;
+            /**
              * Is Active
              * @default true
              */
@@ -6263,6 +6515,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Instalment Plan Fee Kobo
+             * @description Charged to the school per instalment plan made
+             */
+            instalment_plan_fee_kobo: number;
             /** Is Active */
             is_active: boolean;
             /** Is Default */
@@ -7387,7 +7644,7 @@ export interface components {
          * SubscriptionLineKind
          * @enum {string}
          */
-        SubscriptionLineKind: "setup" | "licence" | "pupils" | "discount";
+        SubscriptionLineKind: "setup" | "licence" | "pupils" | "instalment_plans" | "discount";
         /** SubscriptionLineOut */
         SubscriptionLineOut: {
             /** Amount Kobo */
@@ -13717,6 +13974,91 @@ export interface operations {
             };
         };
     };
+    fees_bill_plan_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOfferOut"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     fees_cancel_payment_plan: {
         parameters: {
             query?: never;
@@ -13734,6 +14076,95 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_choose_school_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChooseOfferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15706,6 +16137,95 @@ export interface operations {
             };
         };
     };
+    parent_choose_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoosePlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParentInvoiceDetailOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     parent_my_data: {
         parameters: {
             query?: never;
@@ -17096,6 +17616,265 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaymentOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_list_plan_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanTemplateOut"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_add_plan_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanTemplateOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_change_plan_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanTemplateOut"];
                 };
             };
             /** @description Bad Request */
@@ -20113,6 +20892,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FamilyCheckoutOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    public_family_choose_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FamilyPlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyPageOut"];
                 };
             };
             /** @description Bad Request */

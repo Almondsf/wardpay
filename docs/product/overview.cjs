@@ -9,7 +9,7 @@ const {
 } = require('docx');
 
 const BRAND = 'WardPay'; // the product's working name (APP_NAME)
-const UPDATED = '20 October 2026';
+const UPDATED = '25 October 2026';
 const GREEN = '0F5132';
 const LIGHT = 'E8F3EE';
 
@@ -90,6 +90,8 @@ const AREAS = [
         'Pupils who aren’t taking part are never charged by mistake'],
       ['A price list for uniforms, textbooks and other extras; add them to one pupil’s bill with a quantity',
         'Individual purchases are billed and tracked like everything else'],
+      ['The school’s own instalment plans (“Pay in 3”) that parents choose themselves on their phone, with an optional plan charge',
+        'Parents spread fees without phoning the bursary, and the school decides who may and what it costs'],
       ['Agree with a parent to pay a bill in instalments (2 to 12 dated amounts)',
         'Parents who keep to a plan aren’t chased; reminders ask for the next instalment, not the whole bill'],
       ['Automatic polite reminders before and after the due date by WhatsApp, then text, then email',
@@ -200,6 +202,7 @@ const COMING = [
 
 // Newest first. Add a line whenever something ships.
 const CHANGES = [
+  ['25 Oct 2026', 'Schools set their own instalment plans (“Pay in 3”), and parents choose them on their phone'],
   ['24 Oct 2026', 'Unusual activity for the proprietor: reversals, late cash, short counts, cut bills, write-offs and more, with who recorded them'],
   ['24 Oct 2026', 'Writing off debt the school won’t collect: staff ask, only the proprietor approves'],
   ['24 Oct 2026', 'Paid into the bank: Paystack payouts matched to payments, with charges and anything missing'],

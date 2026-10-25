@@ -27,6 +27,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Download the debtors list and money received as Excel or PDF to share with the board.
 
 ## Bursar
+- ✅ Set up the school's own instalment plans (shares and days from the start of term), choose who may pick each one (any parent, only parents with nothing owed from before, or staff only) and an optional plan charge; put a family on a plan from the bill.
 - ✅ Record what the school spends (who was paid, what for, from cash or the bank), for someone else to approve; cash spent comes off what should be in the drawer.
 - ✅ See how much cash should be in the drawer, record cash taken to the bank with its teller number, and close each day with a count; a second person checks banking against the bank statement.
 - ✅ When taking cash or a teller, note which fees it’s for, so it goes to those fees (even if older debts are owed).
@@ -82,6 +83,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Move everyone into the next term, or promote them a class at the start of a new session (final-year students graduate), with a preview first.
 
 ## Parent
+- ✅ Spread a child's fees myself with one of the school's instalment plans ("Pay in 3"), seeing the dates, amounts and any plan charge before I choose, from my payment link or the portal.
 - ✅ Pay for all my children with one tap from the link in my WhatsApp or text message, straight to the payment page, without working out amounts.
 - ✅ Pay a smaller amount for all my children and see how the school will share it before I pay.
 - ✅ Pay for a particular fee (say WAEC) rather than the bill in general, by ticking it on the payment page; the receipt says what it was for.
@@ -109,6 +111,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Check that a receipt is genuine on a public page (scan its QR code), without seeing the child's details. A reversed payment shows as reversed; a fake receipt doesn't match anything.
 
 ## Platform admin
+- ✅ Charge each school a fee per instalment plan made (₦200 by default, set per pricing plan), on its next termly bill.
 - ✅ Adjust a school's bill: waive the set-up fee or give a discount with a reason, or give them more time by moving the due date.
 - ✅ See the last 12 months at a glance: my subscription income, money parents paid through WardPay, and schools joining or suspended.
 - ✅ When a school's staff member is locked out (lost invite email, forgotten password, lost phone), send them a password link or reset their two-factor sign-in from the school's page.

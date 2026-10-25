@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -7,10 +7,12 @@ import { BRAND } from '../lib/brand';
 import { formatKobo, koboToInput, parseNairaToKobo } from '../lib/format';
 import { FeeList, FeePicker, leftOn } from '../lib/FeeBreakdown';
 import { ErrorAlert, Field, Loading } from '../lib/ui';
+import { PlanChoices, type PlanOffer } from './PlanChoices';
 
 type Child = Schemas['FamilyChildOut'];
 type Checkout = (body: Schemas['FamilyCheckoutIn']) => Promise<Schemas['FamilyCheckoutOut']>;
 type Preview = (totalKobo: number) => Promise<Schemas['FamilySplitOut']>;
+type ChoosePlan = (offer: PlanOffer) => Promise<unknown>;
 type Mode = 'all' | 'amount' | 'each';
 
 /** How the school shares one amount, in a parent's words. */
@@ -34,6 +36,16 @@ export function FamilyPay() {
     unwrap(await api.POST('/api/v1/public/pay/{token}/checkout', { params: { path: { token } }, body }));
   const preview: Preview = async (total) =>
     unwrap(await api.POST('/api/v1/public/pay/{token}/split', { params: { path: { token } }, body: { total_kobo: total } }));
+  const queryClient = useQueryClient();
+  const choosePlan: ChoosePlan = async (offer) => {
+    const updated = unwrap(
+      await api.POST('/api/v1/public/pay/{token}/plan', {
+        params: { path: { token } },
+        body: { invoice_id: offer.invoice_id, template_id: offer.template_id },
+      }),
+    );
+    queryClient.setQueryData(['family-pay', token], updated);
+  };
 
   return (
     <div className="parent-shell">
@@ -46,7 +58,7 @@ export function FamilyPay() {
         ) : page.isError ? (
           <ErrorAlert error={page.error} />
         ) : (
-          <FamilyPayment data={page.data} checkout={checkout} preview={preview} />
+          <FamilyPayment key={planKey(page.data)} data={page.data} checkout={checkout} preview={preview} choosePlan={choosePlan} />
         )}
       </main>
     </div>
@@ -59,7 +71,22 @@ export function FamilyPay() {
  * provider's page (transfer, card or USSD). A parent can instead pay one smaller amount, shared
  * by the school's rule, or choose per child. Each child's own account number is shown too.
  */
-export function FamilyPayment({ data, checkout, preview }: { data: Schemas['FamilyPageOut']; checkout: Checkout; preview: Preview }) {
+/** Changes when a plan is chosen, so the page starts afresh with the new amounts due. */
+export const planKey = (data: Schemas['FamilyPageOut']) => data.children.map((c) => `${c.student_id}:${c.on_plan}`).join(',');
+
+export function FamilyPayment({
+  data,
+  checkout,
+  preview,
+  choosePlan,
+  onPlanChosen = () => undefined,
+}: {
+  data: Schemas['FamilyPageOut'];
+  checkout: Checkout;
+  preview: Preview;
+  choosePlan?: ChoosePlan;
+  onPlanChosen?: () => void;
+}) {
   const owing = data.children.filter((c) => c.owed_kobo > 0);
   const [mode, setMode] = useState<Mode>('all');
   // What the parent will pay per child, as typed (prefilled with what's due now)
@@ -182,6 +209,11 @@ export function FamilyPayment({ data, checkout, preview }: { data: Schemas['Fami
           onAmount={(value) => setAmounts({ ...amounts, [c.student_id]: value })}
           picked={picked[c.student_id] ?? []}
           onPick={(names) => pick(c, names)}
+          plans={
+            choosePlan && !c.on_plan ? (
+              <PlanChoices firstName={c.first_name} offers={c.plan_offers ?? []} choose={choosePlan} onChosen={onPlanChosen} />
+            ) : null
+          }
         />
       ))}
       {payOnline && mode === 'each' && (
@@ -289,7 +321,9 @@ function ChildCard({
   onAmount,
   picked,
   onPick,
+  plans,
 }: {
+  plans?: ReactNode;
   child: Child;
   payOnline: boolean;
   amount: string;
@@ -319,6 +353,7 @@ function ChildCard({
         )}
       </div>
       <FeeList fees={child.fees} earlierKobo={child.earlier_left_kobo} />
+      {plans}
       {payOnline && child.owed_kobo > 0 && child.fees.some((f) => f.left_kobo > 0) && (
         <FeePicker fees={child.fees} picked={picked} onChange={onPick} label="Pay for particular fees? (optional)" />
       )}
