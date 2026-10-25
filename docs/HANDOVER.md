@@ -163,10 +163,12 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
   controls (and the school can change that address), and big files exceed attachment limits. If an
   emailed file is ever wanted: one encrypted .xlsx (msoffcrypto-tool, AES), built per school by an outbox
   job, password by SMS to the school's phone. Ties in with the open "close a school" decision.
+- **No second, cheaper virtual-account provider** (owner, 2026-10-25): Fincra, Figo and the like need
+  BVN verification for each virtual account, which WardPay doesn't want to collect. Stay on Paystack's
+  Dedicated NUBAN for pupils' account numbers; don't propose these providers again.
 - **One virtual account per family** (on hold, owner 2026-10-23; the split rule below is built and used by
   the family payment link, so family numbers would reuse it). Needs a provider that issues virtual
-  accounts (Paystack Dedicated NUBAN, or Fincra / Figo / Squad / Monnify: published caps ₦250 / ₦200 /
-  ₦1,000 / ₦500 vs Paystack ₦300). A plain transfer says nothing about which child it's for, so it's
+  accounts (Paystack Dedicated NUBAN; the cheaper providers were ruled out, see above). A plain transfer says nothing about which child it's for, so it's
   split by a **rule each school chooses** (owner, 2026-10-23), a school setting:
   - **old debts first, then clear as many children as possible** (the default): earlier terms oldest
     first across the children, then this term smallest balance first, tuition first within a child;
