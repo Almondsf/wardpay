@@ -163,6 +163,10 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
   controls (and the school can change that address), and big files exceed attachment limits. If an
   emailed file is ever wanted: one encrypted .xlsx (msoffcrypto-tool, AES), built per school by an outbox
   job, password by SMS to the school's phone. Ties in with the open "close a school" decision.
+- **Demo reset button: dropped** (owner, 2026-10-25: "leave this out"). If it comes back: never seed the demo
+  on the live site as it is (known passwords incl. a platform admin, real texts to made-up numbers, real
+  Paystack calls). The safe options were a separate demo deployment (fake gateway, its own free DB) or a
+  locked-down `is_demo` school with random credentials.
 - **No second, cheaper virtual-account provider** (owner, 2026-10-25): Fincra, Figo and the like need
   BVN verification for each virtual account, which WardPay doesn't want to collect. Stay on Paystack's
   Dedicated NUBAN for pupils' account numbers; don't propose these providers again.
