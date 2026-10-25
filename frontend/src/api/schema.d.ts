@@ -929,6 +929,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/guardians/{guardian_id}/plan-offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The school's plans each of a parent's children's bills can go on (staff-only plans included) */
+        get: operations["fees_family_plan_offers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/guardians/{guardian_id}/reminders": {
         parameters: {
             query?: never;
@@ -940,6 +957,23 @@ export interface paths {
         /** Turn a parent's fee notices and reminders on or off (receipts always go) */
         put: operations["messaging_guardian_preference"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/guardians/{guardian_id}/school-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Put all of a parent's children on a school plan, for parents who asked (and optionally tell them) */
+        post: operations["fees_family_school_plan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4787,6 +4821,18 @@ export interface components {
             /** Reference */
             reference: string;
         };
+        /** FamilyChildOffersOut */
+        FamilyChildOffersOut: {
+            /** First Name */
+            first_name: string;
+            /** Offers */
+            offers: components["schemas"]["PlanOfferOut"][];
+            /**
+             * Student Id
+             * Format: uuid
+             */
+            student_id: string;
+        };
         /** FamilyChildOut */
         FamilyChildOut: {
             /**
@@ -4880,18 +4926,23 @@ export interface components {
              */
             student_id: string;
         };
-        /** FamilyPlanIn */
-        FamilyPlanIn: {
+        /** FamilyPlanResultOut */
+        FamilyPlanResultOut: {
             /**
-             * Invoice Id
-             * Format: uuid
+             * Applied
+             * @description The pupils whose bill was put on the plan
              */
-            invoice_id: string;
+            applied: string[];
             /**
-             * Template Id
-             * Format: uuid
+             * Messages
+             * @description Reminders queued to tell the parent
              */
-            template_id: string;
+            messages: number;
+            /**
+             * Told
+             * @description False when the parent has turned reminders off, so nothing was sent
+             */
+            told: boolean;
         };
         /** FamilyShareOut */
         FamilyShareOut: {
@@ -8116,6 +8167,33 @@ export interface components {
          * @enum {string}
          */
         WriteOffStatus: "pending" | "approved" | "rejected";
+        /** FamilyPlanIn */
+        app__modules__fees__router__FamilyPlanIn: {
+            /**
+             * Tell Parent
+             * @description Send the parent a reminder now with the first payment
+             * @default true
+             */
+            tell_parent?: boolean;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+        };
+        /** FamilyPlanIn */
+        app__modules__payments__family_router__FamilyPlanIn: {
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -13395,6 +13473,91 @@ export interface operations {
             };
         };
     };
+    fees_family_plan_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyChildOffersOut"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     messaging_guardian_preference: {
         parameters: {
             query?: never;
@@ -13417,6 +13580,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreferenceOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_family_school_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__modules__fees__router__FamilyPlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyPlanResultOut"];
                 };
             };
             /** @description Bad Request */
@@ -20970,7 +21222,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FamilyPlanIn"];
+                "application/json": components["schemas"]["app__modules__payments__family_router__FamilyPlanIn"];
             };
         };
         responses: {

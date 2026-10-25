@@ -8,7 +8,7 @@ from sqlalchemy import text
 from app.core.clock import lagos_today
 from app.core.tenancy import scope_platform_wide
 from app.modules.accounts.models import Role
-from tests.factories import QueryCounter, headers_for, make_user
+from tests.factories import QueryCounter, headers_for, make_school, make_user
 from tests.test_family_link import page, staff_link
 from tests.test_family_link import world as world  # the fixture
 from tests.test_fees import generate
@@ -192,3 +192,48 @@ async def test_wardpay_charges_the_school_per_plan_once(client, world, db, term_
     scope_platform_wide(db)
     charged = db.execute(text("SELECT count(*) FROM payment_plans WHERE subscription_invoice_id IS NOT NULL")).scalar()
     assert charged == 2
+
+
+async def test_staff_put_a_whole_family_on_a_plan_and_tell_the_parent(client, world, db, connection, term_running):
+    staff_only = await add_plan(client, world, name="By arrangement", eligibility="staff_only")
+    await generate(client, world)
+    url = f"/api/v1/guardians/{world['guardian'].id}"
+    offered = (await client.get(f"{url}/plan-offers", headers=world["bursar"])).json()
+    assert {c["first_name"]: [o["name"] for o in c["offers"]] for c in offered} == {
+        "Ada": ["By arrangement"],
+        "Bayo": ["By arrangement"],
+    }
+    with QueryCounter(connection) as two_children:
+        done = await client.post(f"{url}/school-plan", headers=world["bursar"], json={"template_id": staff_only["id"]})
+    assert done.status_code == 201, done.text
+    assert done.json()["told"] is True and done.json()["messages"] == 2
+    assert set(done.json()["applied"]) == {str(world["ada"].id), str(world["bayo"].id)}
+    scope_platform_wide(db)
+    kinds = db.execute(text("SELECT kind, dedupe_key FROM message_log WHERE dedupe_key LIKE 'plan-agreed:%'")).all()
+    assert len(kinds) == 2 and {k for k, _ in kinds} == {"reminder"}
+    db.rollback()
+    again = await client.post(f"{url}/school-plan", headers=world["bursar"], json={"template_id": staff_only["id"]})
+    assert again.status_code == 409  # both already on a plan
+
+    # Mr Okafor has one child and has turned reminders off: put on the plan, but not messaged
+    other = f"/api/v1/guardians/{world['other'].id}"
+    opted = await client.put(f"{other}/reminders", headers=world["admin"], json={"reminders": False})
+    assert opted.status_code == 200, opted.text
+    with QueryCounter(connection) as one_child:
+        quiet = await client.post(
+            f"{other}/school-plan", headers=world["bursar"], json={"template_id": staff_only["id"]}
+        )
+    assert quiet.status_code == 201 and quiet.json()["told"] is False and quiet.json()["messages"] == 0
+    assert len(two_children.statements) >= len(one_child.statements)  # no statements per child
+
+
+async def test_another_school_cant_put_our_families_on_plans(client, world, db, term_running):
+    plan = await add_plan(client, world)
+    await generate(client, world)
+    stranger = headers_for(db, make_user(db, make_school(db, "Beta Academy"), Role.BURSAR))
+    db.commit()
+    url = f"/api/v1/guardians/{world['guardian'].id}"
+    assert (await client.get(f"{url}/plan-offers", headers=stranger)).status_code == 404
+    assert (
+        await client.post(f"{url}/school-plan", headers=stranger, json={"template_id": plan["id"]})
+    ).status_code == 404

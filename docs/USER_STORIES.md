@@ -27,7 +27,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Download the debtors list and money received as Excel or PDF to share with the board.
 
 ## Bursar
-- ✅ Set up the school's own instalment plans (shares and days from the start of term), choose who may pick each one (any parent, only parents with nothing owed from before, or staff only) and an optional plan charge; put a family on a plan from the bill.
+- ✅ Set up the school's own instalment plans (shares and days from the start of term), choose who may pick each one (any parent, only parents with nothing owed from before, or staff only) and an optional plan charge; put a parent who asked (all their children at once) on a plan from the pupil's page, and have them told by WhatsApp or text, since most parents won't use the website.
 - ✅ Record what the school spends (who was paid, what for, from cash or the bank), for someone else to approve; cash spent comes off what should be in the drawer.
 - ✅ See how much cash should be in the drawer, record cash taken to the bank with its teller number, and close each day with a count; a second person checks banking against the bank statement.
 - ✅ When taking cash or a teller, note which fees it’s for, so it goes to those fees (even if older debts are owed).

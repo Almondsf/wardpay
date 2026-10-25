@@ -637,6 +637,14 @@ table.lines {
   border-radius: 10px;
 }
 
+.plan-family {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
 .plan-parts {
   border: 1px solid var(--line);
   border-radius: 10px;

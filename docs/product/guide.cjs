@@ -347,8 +347,24 @@ const SECTIONS = [
         notes: [
           'Parents see the plans on their payment link and in the portal, with the exact dates and amounts, and choose with two taps.',
           'Payments whose day has already passed fall due straight away. Plans are not offered once a term has ended or been closed.',
-          'Staff can put a family on any plan, including staff-only ones: open the bill and press Use a school plan.',
+          'Most parents won’t choose a plan themselves: see “Putting a family on a plan” below.',
           `${BRAND} charges the school a small fee for each instalment plan made, on its next termly ${BRAND} bill.`,
+        ],
+      },
+      {
+        name: 'Putting a family on a plan',
+        who: 'Bursar, school admin, proprietor',
+        purpose: 'For a parent who asks to spread their payments (by phone or at the school): put all their children on one of the school’s plans and have them told, without the parent using the website.',
+        steps: [
+          'Open one of the children from Students. Beside the parent, press Instalment plan.',
+          'Choose the plan. Each child shows what they will pay and when, or why they can’t go on it (nothing owed this term, or already on a plan).',
+          'Leave “Tell … now by WhatsApp or text” ticked, and press Put on the plan.',
+          'To put a single bill on a plan instead, open the bill and press Use a school plan.',
+        ],
+        notes: [
+          'The parent is sent the first payment due straight away; after that, reminders follow the plan’s dates.',
+          'If the parent turned reminders off, no message is sent: let them know yourself.',
+          'Staff-only plans (ones parents can’t pick themselves) can be used here.',
         ],
       },
       {
@@ -726,6 +742,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['25 Oct 2026', 'Putting a whole family on a plan from the pupil’s page, and telling the parent by WhatsApp or text.'],
   ['25 Oct 2026', 'The school’s own instalment plans: set up by staff, chosen by parents; the per-plan fee on WardPay bills.'],
   ['24 Oct 2026', 'The journal and the end-of-session pack are now prepared in the background, then download by themselves.'],
   ['24 Oct 2026', 'First edition: every feature, what it is for and how to use it.'],

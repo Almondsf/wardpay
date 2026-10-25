@@ -2989,6 +2989,33 @@
         "title": "FamilyCheckoutOut",
         "type": "object"
       },
+      "FamilyChildOffersOut": {
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/PlanOfferOut"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "student_id": {
+            "format": "uuid",
+            "title": "Student Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "student_id",
+          "first_name",
+          "offers"
+        ],
+        "title": "FamilyChildOffersOut",
+        "type": "object"
+      },
       "FamilyChildOut": {
         "properties": {
           "account_number": {
@@ -3175,24 +3202,34 @@
         "title": "FamilyPartIn",
         "type": "object"
       },
-      "FamilyPlanIn": {
+      "FamilyPlanResultOut": {
         "properties": {
-          "invoice_id": {
-            "format": "uuid",
-            "title": "Invoice Id",
-            "type": "string"
+          "applied": {
+            "description": "The pupils whose bill was put on the plan",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Applied",
+            "type": "array"
           },
-          "template_id": {
-            "format": "uuid",
-            "title": "Template Id",
-            "type": "string"
+          "messages": {
+            "description": "Reminders queued to tell the parent",
+            "title": "Messages",
+            "type": "integer"
+          },
+          "told": {
+            "description": "False when the parent has turned reminders off, so nothing was sent",
+            "title": "Told",
+            "type": "boolean"
           }
         },
         "required": [
-          "invoice_id",
-          "template_id"
+          "applied",
+          "messages",
+          "told"
         ],
-        "title": "FamilyPlanIn",
+        "title": "FamilyPlanResultOut",
         "type": "object"
       },
       "FamilyShareOut": {
@@ -10853,6 +10890,46 @@
         ],
         "title": "WriteOffStatus",
         "type": "string"
+      },
+      "app__modules__fees__router__FamilyPlanIn": {
+        "properties": {
+          "tell_parent": {
+            "default": true,
+            "description": "Send the parent a reminder now with the first payment",
+            "title": "Tell Parent",
+            "type": "boolean"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "FamilyPlanIn",
+        "type": "object"
+      },
+      "app__modules__payments__family_router__FamilyPlanIn": {
+        "properties": {
+          "invoice_id": {
+            "format": "uuid",
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "template_id"
+        ],
+        "title": "FamilyPlanIn",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -17644,6 +17721,118 @@
         ]
       }
     },
+    "/api/v1/guardians/{guardian_id}/plan-offers": {
+      "get": {
+        "operationId": "fees_family_plan_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "guardian_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Guardian Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FamilyChildOffersOut"
+                  },
+                  "title": "Response Fees Family Plan Offers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The school's plans each of a parent's children's bills can go on (staff-only plans included)",
+        "tags": [
+          "fees"
+        ]
+      }
+    },
     "/api/v1/guardians/{guardian_id}/reminders": {
       "put": {
         "operationId": "messaging_guardian_preference",
@@ -17759,6 +17948,124 @@
         "summary": "Turn a parent's fee notices and reminders on or off (receipts always go)",
         "tags": [
           "messaging"
+        ]
+      }
+    },
+    "/api/v1/guardians/{guardian_id}/school-plan": {
+      "post": {
+        "operationId": "fees_family_school_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "guardian_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Guardian Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__modules__fees__router__FamilyPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPlanResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put all of a parent's children on a school plan, for parents who asked (and optionally tell them)",
+        "tags": [
+          "fees"
         ]
       }
     },
@@ -27492,7 +27799,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyPlanIn"
+                "$ref": "#/components/schemas/app__modules__payments__family_router__FamilyPlanIn"
               }
             }
           },

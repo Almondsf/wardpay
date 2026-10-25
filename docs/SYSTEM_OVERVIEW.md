@@ -595,6 +595,15 @@ the plan charge as a bill line ("Instalment plan charge (Pay in 3)", into the sc
 fees), then an ordinary `PaymentPlan` (`template_id` set; `created_by` empty when the parent chose it), in
 one transaction under the bill's lock. Offers are two queries whatever the number of pupils.
 
+Most parents won't choose a plan on the website (owner, 2026-10-25), so staff put a whole family on one
+for a parent who asked: on the pupil's page, Instalment plan beside the parent
+(`GET /guardians/{id}/plan-offers`, `POST /guardians/{id}/school-plan` with `tell_parent`,
+`invoices.issue`; staff-only plans included). Every current child's term bill that the plan is available
+for goes on it (`choose_many`: the bills locked in one select, then the charge lines, plans, instalments
+and audit rows each in one statement, however many children), and unless the parent turned reminders off,
+one reminder per child is queued at once (dedupe `plan-agreed:<plan>`), worded around the plan's first
+payment, through the usual WhatsApp → text → email delivery and quiet hours.
+
 **WardPay's per-plan fee.** Each pricing plan has `instalment_plan_fee_kobo` (₦200 by default, set in
 Platform → Plans; owner 2026-10-25, to cover the extra reminders a plan sends). Every instalment plan made
 from 25 Oct 2026 on (a parent's choice or staff's, custom or from a school plan; not cancelled ones) is
@@ -1309,7 +1318,7 @@ production.
 | Manual payments | `GET/POST /manual-payments`; `POST /manual-payments/{id}/approve`, `/reject` |
 | Accounting | `GET /accounting/accounts`, `PUT /accounting/accounts/{key}`; `GET /accounting/journal?start=&end=`; `POST /accounting/exports`, `GET /accounting/exports/{id}`, `GET /accounting/exports/{id}/download`; `GET /accounting/books`, `POST /accounting/terms/{id}/close`, `POST /accounting/books/reopen` |
 | Settlements | `GET /settlements?start=&end=`; `POST /settlements/refresh` |
-| School instalment plans | `GET/POST /plan-templates`, `PUT /plan-templates/{id}`; `GET /invoices/{id}/plan-offers`; `POST /invoices/{id}/plan/school-plan`; `POST /public/pay/{token}/plan`; `POST /parent/invoices/{id}/plan` |
+| School instalment plans | `GET/POST /plan-templates`, `PUT /plan-templates/{id}`; `GET /invoices/{id}/plan-offers`; `POST /invoices/{id}/plan/school-plan`; `GET /guardians/{id}/plan-offers`, `POST /guardians/{id}/school-plan`; `POST /public/pay/{token}/plan`; `POST /parent/invoices/{id}/plan` |
 | Write-offs | `POST /invoices/{id}/write-off`; `GET /write-offs?status=`; `POST /write-offs/{id}/approve`, `/reject` |
 | Expenses | `GET/POST /expense-categories`, `PUT /expense-categories/{id}`; `GET/POST /expenses`; `POST /expenses/{id}/approve`, `/reject`, `/void`; `GET /reports/income-expenditure?start=&end=` |
 | Cash book | `GET /cash-book?start=&end=`; `GET/POST /cash-deposits`; `POST /cash-deposits/{id}/confirm`, `/reject`; `POST /cash-book/close` |

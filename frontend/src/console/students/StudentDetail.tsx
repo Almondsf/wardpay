@@ -11,6 +11,7 @@ import { StudentAccount } from '../billing/StudentAccount';
 import { StudentPayIn } from '../payments/StudentPayIn';
 import { armOptions, useClassLevels } from '../hooks';
 import { FamilyLinkDialog } from './FamilyLink';
+import { FamilyPlanDialog } from './FamilyPlan';
 import { LANGUAGE_LABELS, ParentCallsDialog } from './ParentCalls';
 import { saveBlob } from '../../lib/download';
 
@@ -31,6 +32,7 @@ export function StudentDetail() {
   const [erasing, setErasing] = useState<EraseTarget | null>(null);
   const [payLink, setPayLink] = useState<Guardian | null>(null);
   const [calls, setCalls] = useState<Guardian | null>(null);
+  const [familyPlan, setFamilyPlan] = useState<Guardian | null>(null);
   const [tab, setTab] = useState<'overview' | 'fees' | 'payments'>('overview');
   // Same query as the Fees tab, so the balance in the header costs no extra request
   const account = useQuery({
@@ -241,6 +243,11 @@ export function StudentDetail() {
                     Payment link
                   </button>
                 )}
+                {!g.erased && can('invoices.issue') && (
+                  <button className="secondary small" onClick={() => setFamilyPlan(g)}>
+                    Instalment plan
+                  </button>
+                )}
                 {manage && !g.erased && (
                   <Menu label={`Actions for ${g.full_name}`} icon={<Ellipsis size={18} />}>
                     <button onClick={() => setEditingGuardian(g)}>Edit</button>
@@ -284,6 +291,14 @@ export function StudentDetail() {
       {editingGuardian && <EditGuardian guardian={editingGuardian} onClose={() => setEditingGuardian(null)} onDone={refresh} />}
       {erasing && <Erase target={erasing} onClose={() => setErasing(null)} onDone={refresh} />}
       {calls && <ParentCallsDialog guardian={calls} onClose={() => setCalls(null)} onDone={refresh} />}
+      {familyPlan && (
+        <FamilyPlanDialog
+          guardianId={familyPlan.id}
+          name={familyPlan.full_name}
+          remindersOn={familyPlan.reminders}
+          onClose={() => setFamilyPlan(null)}
+        />
+      )}
       {payLink && <FamilyLinkDialog guardianId={payLink.id} name={payLink.full_name} onClose={() => setPayLink(null)} />}
     </>
   );

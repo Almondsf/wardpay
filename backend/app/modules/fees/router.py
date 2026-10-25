@@ -1098,3 +1098,49 @@ def choose_school_plan(
         staff=True,
     )
     return _invoice_out(db, invoice_id)
+
+
+class FamilyChildOffersOut(BaseModel):
+    student_id: uuid.UUID
+    first_name: str
+    offers: list[PlanOfferOut]
+
+
+class FamilyPlanIn(BaseModel):
+    template_id: uuid.UUID
+    tell_parent: bool = Field(default=True, description="Send the parent a reminder now with the first payment")
+
+
+class FamilyPlanResultOut(BaseModel):
+    applied: list[uuid.UUID] = Field(description="The pupils whose bill was put on the plan")
+    messages: int = Field(description="Reminders queued to tell the parent")
+    told: bool = Field(description="False when the parent has turned reminders off, so nothing was sent")
+
+
+@router.get(
+    "/guardians/{guardian_id}/plan-offers",
+    response_model=list[FamilyChildOffersOut],
+    summary="The school's plans each of a parent's children's bills can go on (staff-only plans included)",
+)
+def family_plan_offers(
+    guardian_id: uuid.UUID, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+) -> list[FamilyChildOffersOut]:
+    return [
+        FamilyChildOffersOut(student_id=c.student_id, first_name=c.first_name, offers=[offer_out(o) for o in c.offers])
+        for c in plan_offers.family_offers(db, guardian_id)
+    ]
+
+
+@router.post(
+    "/guardians/{guardian_id}/school-plan",
+    response_model=FamilyPlanResultOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Put all of a parent's children on a school plan, for parents who asked (and optionally tell them)",
+)
+def family_school_plan(
+    guardian_id: uuid.UUID, body: FamilyPlanIn, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+) -> FamilyPlanResultOut:
+    result = plan_offers.apply_for_family(db, ctx, guardian_id, body.template_id, tell_parent=body.tell_parent)
+    return FamilyPlanResultOut(
+        applied=[a.invoice.student_id for a in result.applied], messages=result.messages, told=result.told
+    )

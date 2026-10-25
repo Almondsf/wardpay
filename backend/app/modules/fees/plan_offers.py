@@ -33,6 +33,7 @@ from app.modules.accounts.deps import StaffContext
 from app.modules.audit.models import AuditAction
 from app.modules.audit.service import Actor, record
 from app.modules.schools.models import School, Term
+from app.modules.students.models import Guardian, GuardianStudent, Student, StudentStatus
 
 from .invoicing import totals_subquery
 from .ledger import paid_subquery
@@ -44,9 +45,10 @@ from .models import (
     PaymentPlan,
     PlanChargeKind,
     PlanEligibility,
+    PlanInstalment,
     PlanTemplate,
 )
-from .plans import MAX_INSTALMENTS, MIN_INSTALMENTS, add_plan
+from .plans import MAX_INSTALMENTS, MIN_INSTALMENTS
 
 FULL = 10_000  # basis points: 100%
 MAX_PERCENT_BP = 2_000
@@ -268,49 +270,223 @@ def choose(
     student_ids: list[uuid.UUID] | None = None,
 ) -> PaymentPlan:
     """
-    Put a bill on one of the school's plans: the plan charge as a line, then the plan. `student_ids`: the
-    pupils a parent may act for (a parent can only choose for their own children).
+    Put one bill on one of the school's plans. `student_ids`: the pupils a parent may act for (a parent can
+    only choose for their own children).
     """
     invoice = session.scalar(select(Invoice).where(Invoice.id == invoice_id).with_for_update())
     if invoice is None or (student_ids is not None and invoice.student_id not in student_ids):
         raise NotFound("Bill not found.")
-    offer = next(
-        (
-            o
-            for o in offers(session, [invoice.student_id], staff=staff).get(invoice.id, [])
-            if o.template_id == template_id
-        ),
-        None,
-    )
-    if offer is None:
-        raise Conflict("That plan isn't available for this bill.", code="plan_not_offered")
-    if offer.charge_kobo:
-        position = (
-            session.scalar(select(func.max(InvoiceLine.position)).where(InvoiceLine.invoice_id == invoice.id)) or 0
-        ) + 1
-        session.add(
-            InvoiceLine(
-                id=uuid.uuid4(),
-                invoice_id=invoice.id,
-                position=position,
-                kind=LineKind.FEE,
-                description=f"Instalment plan charge ({offer.name})",
-                amount_kobo=offer.charge_kobo,
-                created_by=created_by,
-                reason=f"Chose the {offer.name} plan",
-            )
-        )
-        session.flush()
-    plan = add_plan(
+    [result] = choose_many(
         session,
-        invoice,
-        offer.instalments,
-        note=f"{offer.name} (chosen by the parent)" if created_by is None else offer.name,
-        created_by=created_by,
+        [invoice],
+        template_id,
+        school_id=school_id,
         actor=actor,
         meta=meta,
-        school_id=school_id,
-        template_id=template_id,
+        created_by=created_by,
+        staff=staff,
+    )
+    if result.plan is None:
+        raise Conflict("That plan isn't available for this bill.", code="plan_not_offered")
+    session.commit()
+    return result.plan
+
+
+@dataclass(frozen=True)
+class Applied:
+    invoice: Invoice
+    plan: PaymentPlan | None  # None: the plan isn't available for this bill (paid, already on a plan…)
+
+
+def choose_many(
+    session: Session,
+    invoices: list[Invoice],
+    template_id: uuid.UUID,
+    *,
+    school_id: uuid.UUID,
+    actor: Actor,
+    meta: RequestMeta | None,
+    created_by: uuid.UUID | None,
+    staff: bool,
+) -> list[Applied]:
+    """
+    Put several bills (locked by the caller) on one of the school's plans: each plan charge as a line, then
+    the plans, in a fixed number of statements however many bills. Bills the plan isn't available for are
+    left alone. The caller commits.
+    """
+    from .invoicing import amounts_for  # invoicing imports this module's siblings
+
+    by_invoice = {
+        o.invoice_id: o
+        for bill_offers in offers(session, list({i.student_id for i in invoices}), staff=staff).values()
+        for o in bill_offers
+        if o.template_id == template_id
+    }
+    chosen = [(i, by_invoice[i.id]) for i in invoices if i.id in by_invoice]
+    if not chosen:
+        return [Applied(i, None) for i in invoices]
+    charged = [(i, o) for i, o in chosen if o.charge_kobo]
+    if charged:
+        positions = dict(
+            session.execute(
+                select(InvoiceLine.invoice_id, func.max(InvoiceLine.position))
+                .where(InvoiceLine.invoice_id.in_([i.id for i, _ in charged]))
+                .group_by(InvoiceLine.invoice_id)
+            ).all()
+        )
+        session.add_all(
+            InvoiceLine(
+                id=uuid.uuid4(),
+                invoice_id=i.id,
+                position=int(positions.get(i.id) or 0) + 1,
+                kind=LineKind.FEE,
+                description=f"Instalment plan charge ({o.name})",
+                amount_kobo=o.charge_kobo,
+                created_by=created_by,
+                reason=f"Put on the {o.name} plan",
+            )
+            for i, o in charged
+        )
+        session.flush()
+    paid = amounts_for(session, [i.id for i, _ in chosen])
+    who = "chosen by the parent" if created_by is None else None
+    plans = {
+        i.id: PaymentPlan(
+            id=uuid.uuid4(),
+            school_id=school_id,
+            invoice_id=i.id,
+            student_id=i.student_id,
+            paid_at_start_kobo=paid[i.id].paid_kobo,
+            covered_kobo=o.total_kobo,
+            note=f"{o.name} ({who})" if who else o.name,
+            created_by=created_by,
+            template_id=template_id,
+        )
+        for i, o in chosen
+    }
+    session.add_all(plans.values())
+    session.flush()
+    session.add_all(
+        PlanInstalment(school_id=school_id, plan_id=plans[i.id].id, number=n, due_date=d, amount_kobo=amount)
+        for i, o in chosen
+        for n, (d, amount) in enumerate(o.instalments, start=1)
+    )
+    for i, o in chosen:  # audit rows, flushed together
+        record(
+            session,
+            AuditAction.PAYMENT_PLAN_CREATED,
+            school_id=school_id,
+            actor=actor,
+            meta=meta,
+            target=i,
+            changes={
+                "number": i.number,
+                "covered_kobo": o.total_kobo,
+                "school_plan": o.name,
+                "plan_charge_kobo": o.charge_kobo,
+                "instalments": [{"due": d.isoformat(), "amount_kobo": a} for d, a in o.instalments],
+            },
+        )
+    session.flush()
+    return [Applied(i, plans.get(i.id)) for i in invoices]
+
+
+# --- A family, put on a plan by staff ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FamilyChild:
+    student_id: uuid.UUID
+    first_name: str
+    offers: list[Offer]
+
+
+def family_offers(session: Session, guardian_id: uuid.UUID) -> list[FamilyChild]:
+    """A parent's current children and the plans (staff-only ones included) each one's bill can go on."""
+    guardian = session.scalar(select(Guardian.id).where(Guardian.id == guardian_id))
+    if guardian is None:
+        raise NotFound("Parent not found.")
+    children = _children(session, guardian_id)
+    found = offers(session, [sid for sid, _ in children], staff=True)
+    per_child: dict[uuid.UUID, list[Offer]] = defaultdict(list)
+    for bill_offers in found.values():
+        for o in bill_offers:
+            per_child[o.student_id].append(o)
+    return [FamilyChild(sid, name, per_child.get(sid, [])) for sid, name in children]
+
+
+def _children(session: Session, guardian_id: uuid.UUID) -> list[tuple[uuid.UUID, str]]:
+    return [
+        (sid, name)
+        for sid, name in session.execute(
+            select(Student.id, Student.first_name)
+            .join(GuardianStudent, GuardianStudent.student_id == Student.id)
+            .where(GuardianStudent.guardian_id == guardian_id, Student.status == StudentStatus.ACTIVE)
+            .order_by(Student.first_name, Student.id)
+        )
+    ]
+
+
+@dataclass(frozen=True)
+class FamilyResult:
+    applied: list[Applied]
+    messages: int  # reminders queued to tell the parent
+    told: bool  # False: the parent has turned reminders off, so nothing was sent
+
+
+def apply_for_family(
+    session: Session, ctx: StaffContext, guardian_id: uuid.UUID, template_id: uuid.UUID, *, tell_parent: bool
+) -> FamilyResult:
+    """
+    Staff put every current child of one parent on a school plan (for parents who asked, and won't use the
+    website), and optionally tell the parent at once: a reminder per child, worded around the plan's first
+    payment. A fixed number of statements however many children.
+    """
+    from app.modules.notifications.models import MessageKind  # notifications reads fees; imported here
+    from app.modules.notifications.service import NewMessage, queue
+
+    guardian = session.scalar(select(Guardian).where(Guardian.id == guardian_id))
+    if guardian is None:
+        raise NotFound("Parent not found.")
+    student_ids = [sid for sid, _ in _children(session, guardian_id)]
+    bills = list(
+        session.scalars(
+            select(Invoice)
+            .where(
+                Invoice.student_id.in_(student_ids),
+                Invoice.kind == InvoiceKind.TERM,
+                Invoice.voided_at.is_(None),
+            )
+            .order_by(Invoice.id)
+            .with_for_update()
+        )
+    )
+    applied = choose_many(
+        session,
+        bills,
+        template_id,
+        school_id=ctx.school_id,
+        actor=ctx.actor,
+        meta=ctx.meta,
+        created_by=ctx.user.id,
+        staff=True,
+    )
+    made = [a for a in applied if a.plan is not None]
+    if not made:
+        raise Conflict("That plan isn't available for any of this parent's children.", code="plan_not_offered")
+    told = tell_parent and guardian.reminders_opt_out_at is None
+    messages = (
+        queue(
+            session,
+            ctx.school_id,
+            [
+                NewMessage(guardian.id, a.invoice.student_id, MessageKind.REMINDER, f"plan-agreed:{a.plan.id}")
+                for a in made
+                if a.plan is not None
+            ],
+        )
+        if told
+        else 0
     )
     session.commit()
-    return plan
+    return FamilyResult(made, messages, told)
