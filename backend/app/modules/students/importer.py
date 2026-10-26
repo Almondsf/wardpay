@@ -33,6 +33,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.crypto import blind_index
+from app.core.db import BULK_ROWS, refresh_statistics
 from app.core.errors import Conflict, DomainError
 from app.core.phone import InvalidPhone, normalize_phone
 from app.modules.accounts.deps import StaffContext
@@ -601,6 +602,8 @@ def import_students(
         },
     )
     session.commit()
+    if report.students_created >= BULK_ROWS:  # billing usually follows straight away
+        refresh_statistics(session, ("students", "enrollments", "guardians", "guardian_students"))
     return report
 
 

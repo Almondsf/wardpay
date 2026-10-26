@@ -181,13 +181,20 @@ export function Generate({ termId, onClose }: { termId: string; onClose: () => v
   const [dueDate, setDueDate] = useState('');
   const [notify, setNotify] = useState(true);
   const run = useMutation({
-    mutationFn: async (dryRun: boolean) =>
-      unwrap(
+    mutationFn: async (dryRun: boolean) => {
+      let report = unwrap(
         await api.POST('/api/v1/terms/{term_id}/invoices/generate', {
           params: { path: { term_id: termId } },
           body: { dry_run: dryRun, due_date: dueDate || null, notify_parents: notify },
         }),
-      ),
+      );
+      // A big school's bills are made in the background: check back until they're done
+      while (report.pending && report.run_id) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        report = unwrap(await api.GET('/api/v1/billing-runs/{run_id}', { params: { path: { run_id: report.run_id! } } }));
+      }
+      return report;
+    },
     onSuccess: (report) => {
       if (!report.dry_run) {
         void queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -247,7 +254,7 @@ export function Generate({ termId, onClose }: { termId: string; onClose: () => v
               Preview
             </button>
             <button onClick={() => run.mutate(false)} disabled={run.isPending || !report || report.invoices === 0}>
-              Generate {report ? report.invoices : ''} invoices
+              {run.isPending && run.variables === false ? 'Making the bills…' : `Generate ${report ? report.invoices : ''} invoices`}
             </button>
           </>
         )}

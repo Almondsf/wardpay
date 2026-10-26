@@ -164,7 +164,7 @@ def session_pack(session: Session, session_id: uuid.UUID | None, today: date | N
         end=end,
         terms=_terms(session, academic),
         money=income_expenditure(session, start, end),
-        debtors=all_debtors(session, DebtorFilters(), today),
+        debtors=all_debtors(session, DebtorFilters(), today, limit=None),  # built in the background
         cash=book,
         months=_months(book),
         journal=journal(session, start, end),

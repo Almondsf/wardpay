@@ -6,6 +6,14 @@ date as the build goes on; newest additions are marked _(new)_.
 
 Last updated: 2026-10-24 (one real payment, end to end)
 
+## _(new)_ Hosting for real schools (2026-10-26, from the 10,000-pupil load test)
+
+- [ ] Before the first school relies on WardPay: a **paid Postgres** (the free one is deleted after 30 days,
+      around 19 Nov), an **API that doesn't sleep**, and a **paid background worker** started with
+      `--concurrency 4` (about 1 GB of memory). That records ~6 payments a second: 10,000 arriving at once
+      clear in under half an hour, and nothing is lost meanwhile. Details: DEPLOYMENT.md, "Sizing for big
+      schools". Today's free setup does ~1.7 a second, and only while awake.
+
 ## _(new)_ One real payment, end to end (2026-10-24)
 
 The automatic check of the live site passes (13 of 13: `python -m app.smoke https://wardpay.netlify.app`,

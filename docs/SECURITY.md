@@ -223,6 +223,11 @@ It is updated with every change that affects security.
   voids, its dates), enforced in the services under a row lock on the school. Only the proprietor
   (`books.reopen`) can re-open, with a reason; closings and re-openings are append-only and audited.
 
+## Payment notifications
+- Webhooks are limited to 3,000 a minute per address (raised from 600 after the load test: Paystack sends a
+  busy morning's transfers from a few addresses). Each is signature-checked and re-verified with the gateway;
+  the limit only stops floods.
+
 ## Reports and downloads
 - Background-built files (journal, end-of-session pack) can be fetched only by the staff member who asked
   (anyone else gets 404), expire after a day and are deleted daily.

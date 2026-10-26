@@ -145,4 +145,32 @@ describe('fees and billing', () => {
       { dry_run: false, due_date: null, notify_parents: true },
     ]);
   });
+
+  it('waits while a big school’s bills are made in the background', async () => {
+    const report = { dry_run: false, invoices: 2, total_kobo: 30_000_000, discounts_kobo: 0, already_invoiced: 0, notices_queued: 0, no_fees_set: [], by_class: [], sample: [] };
+    let checks = 0;
+    mockApi({
+      ...base,
+      'GET /api/v1/terms/t1/billing-summary': () =>
+        json({ invoices: 0, billed_kobo: 0, paid_kobo: 0, outstanding_kobo: 0, students_enrolled: 2, students_invoiced: 0 }),
+      'GET /api/v1/invoices': () => json({ items: [], total: 0, limit: 50, offset: 0 }),
+      'POST /api/v1/terms/t1/invoices/generate': async (request) => {
+        const body = (await request.json()) as { dry_run: boolean };
+        return body.dry_run
+          ? json({ ...report, dry_run: true, run_id: null, pending: false })
+          : json({ ...report, invoices: 0, total_kobo: 0, run_id: 'r1', pending: true }, 202);
+      },
+      'GET /api/v1/billing-runs/r1': () => {
+        checks += 1;
+        return checks < 2 ? json({ ...report, invoices: 0, run_id: 'r1', pending: true }, 202) : json({ ...report, run_id: 'r1', pending: false });
+      },
+    });
+    renderAt('/console/billing');
+    await userEvent.click(await screen.findByRole('button', { name: 'Generate invoices' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Generate 2 invoices' }));
+    expect(await screen.findByRole('button', { name: 'Making the bills…' })).toBeDisabled();
+    expect(await screen.findByText(/Done: 2 invoices/, {}, { timeout: 6000 })).toBeInTheDocument();
+    expect(checks).toBe(2);
+  });
 });

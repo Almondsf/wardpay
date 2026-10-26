@@ -2,12 +2,12 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.errors import ERROR_RESPONSES
+from app.core.errors import ERROR_RESPONSES, DomainError
 from app.core.pagination import Page, PageParams, page_params, paginate_rows
 from app.core.repo import get_or_404
 from app.modules.accounts.deps import StaffContext, require
@@ -15,8 +15,9 @@ from app.modules.accounts.permissions import Capability
 from app.modules.schools.models import Term
 from app.modules.students.models import Student
 
-from . import charges, invoicing, plan_offers, plans, setup_service, writeoffs
+from . import billing_runs, charges, invoicing, plan_offers, plans, setup_service, writeoffs
 from .models import (
+    BillingRunStatus,
     DiscountKind,
     DiscountRule,
     FeeCategory,
@@ -239,6 +240,8 @@ class GenerationOut(BaseModel):
     by_class: list[ClassTotalOut]
     sample: list[DraftInvoiceOut]
     notices_queued: int = Field(description="Fee notices queued for parents (when notify_parents)")
+    run_id: uuid.UUID | None = Field(default=None, description="The background billing run (not for a preview)")
+    pending: bool = Field(default=False, description="Still making the bills: poll GET /billing-runs/{run_id}")
 
 
 class StudentBrief(BaseModel):
@@ -587,42 +590,59 @@ def take_discount(
     "/terms/{term_id}/invoices/generate",
     response_model=GenerationOut,
     summary="Invoice every enrolled student for the term (dry_run=true to preview); safe to re-run",
+    responses={202: {"description": "Started in the background: poll GET /billing-runs/{run_id}"}},
 )
 def generate(
-    term_id: uuid.UUID, body: GenerateIn, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+    term_id: uuid.UUID,
+    body: GenerateIn,
+    response: Response,
+    ctx: StaffContext = INVOICES_ISSUE,
+    db: Session = Depends(get_db),
 ) -> GenerationOut:
-    report = invoicing.generate_term_invoices(
-        db,
-        ctx,
-        term_id=term_id,
-        due_date=body.due_date,
-        class_level_ids=set(body.class_level_ids) if body.class_level_ids else None,
-        dry_run=body.dry_run,
-        notify_parents=body.notify_parents,
+    classes = set(body.class_level_ids) if body.class_level_ids else None
+    if body.dry_run:  # the preview writes nothing: answered at once
+        report = invoicing.generate_term_invoices(
+            db, ctx, term_id=term_id, due_date=body.due_date, class_level_ids=classes, dry_run=True
+        )
+        return GenerationOut.model_validate(billing_runs.report_dict(report))
+    run = billing_runs.start(
+        db, ctx, term_id=term_id, due_date=body.due_date, class_level_ids=classes, notify_parents=body.notify_parents
     )
+    return _run_result(db, run.id, response)
+
+
+def _run_result(db: Session, run_id: uuid.UUID, response: Response) -> GenerationOut:
+    """The finished result, or 202 with the run to poll while the bills are still being made."""
+    run = billing_runs.get(db, run_id)
+    if run.status == BillingRunStatus.FAILED:
+        raise DomainError(run.error or "Couldn't make the bills.", code="billing_failed")
+    if run.status == BillingRunStatus.DONE and run.report is not None:
+        return GenerationOut.model_validate({**run.report, "run_id": run.id})
+    response.status_code = status.HTTP_202_ACCEPTED
     return GenerationOut(
-        dry_run=report.dry_run,
-        invoices=report.invoices,
-        total_kobo=report.total_kobo,
-        discounts_kobo=report.discounts_kobo,
-        already_invoiced=report.already_invoiced,
-        notices_queued=report.notices_queued,
-        no_fees_set=report.no_fees_set,
-        by_class=[ClassTotalOut(**c.__dict__) for c in report.by_class],
-        sample=[
-            DraftInvoiceOut(
-                student_id=d.student_id,
-                admission_number=d.admission_number,
-                student_name=d.student_name,
-                class_name=d.class_name,
-                total_kobo=d.total_kobo,
-                lines=[
-                    DraftLineOut(kind=ln.kind, description=ln.description, amount_kobo=ln.amount_kobo) for ln in d.lines
-                ],
-            )
-            for d in report.sample
-        ],
+        dry_run=False,
+        invoices=0,
+        total_kobo=0,
+        discounts_kobo=0,
+        already_invoiced=0,
+        no_fees_set=[],
+        by_class=[],
+        sample=[],
+        notices_queued=0,
+        run_id=run.id,
+        pending=True,
     )
+
+
+@router.get(
+    "/billing-runs/{run_id}",
+    response_model=GenerationOut,
+    summary="A term's bills being made in the background: 202 while running, the result when done",
+)
+def billing_run(
+    run_id: uuid.UUID, response: Response, ctx: StaffContext = INVOICES_ISSUE, db: Session = Depends(get_db)
+) -> GenerationOut:
+    return _run_result(db, run_id, response)
 
 
 @router.get("/terms/{term_id}/billing-summary", response_model=TermSummaryOut, summary="Billed, paid and owed")

@@ -290,7 +290,7 @@ const SECTIONS = [
         steps: [
           'Go to Billing and choose the term.',
           'Press Generate invoices. Set a due date if you want one, and tick “Send each child’s main parent a message with the bill” to tell parents.',
-          'Press Preview to see the total per class, then Generate … invoices.',
+          'Press Preview to see the total per class, then Generate … invoices. For a big school the bills take up to a minute; the button says Making the bills… and the result appears by itself.',
         ],
         notes: ['Running it again only bills pupils who don’t have a bill yet.'],
       },
@@ -742,6 +742,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['26 Oct 2026', 'Generating a big school’s bills now runs in the background and shows the result when done.'],
   ['25 Oct 2026', 'WardPay’s standard plan charge (₦300 a payment + ₦200), which schools can raise but not lower.'],
   ['25 Oct 2026', 'Putting a whole family on a plan from the pupil’s page, and telling the parent by WhatsApp or text.'],
   ['25 Oct 2026', 'The school’s own instalment plans: set up by staff, chosen by parents; the per-plan fee on WardPay bills.'],

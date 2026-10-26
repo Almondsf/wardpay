@@ -359,7 +359,16 @@ adding students. `dry_run` returns a preview with totals per class and any
 classes with no fees set. With `notify_parents`, each main parent is also sent
 a fee notice (section 13), and the response says how many were queued. It runs
 **a fixed number of queries** whatever the number of students (tested), and 60
-invoices take about 0.4 s.
+invoices take about 0.4 s; 10,000 take about 30 s (load test), most of it the
+per-line "a bill never goes below ₦0" check. So real generation is a **billing
+run** in the background (`billing_runs.py`, `BillingRun`, outbox task
+`fees.generate_bills`): the request checks what can fail at once (term, closed
+books, classes), queues the run and answers with the result if it has already
+finished (development, tests), else 202 with `run_id` and `pending`; the screen
+polls `GET /billing-runs/{id}`. The run is marked done in the same transaction
+that makes the bills (`generate_term_invoices(before_commit=...)`); a failure is
+stored and reported (`billing_failed`), never left pending. The preview
+(`dry_run`) still answers at once.
 
 **Charges after the term starts** (`charges.py`; capability `invoices.issue`):
 
@@ -1245,6 +1254,20 @@ Conventions:
 
 ## 18. Background jobs and the outbox
 
+**Load test** (`python -m app.loadtest --pupils 10000`, a local database whose name contains "load"; refuses
+anything else). One school with 10,000 pupils, billed with the real generator, paid by 10,000 signed
+notifications through the real webhook endpoint, recorded as the worker does, then the busy screens and files.
+Last run (25 Oct 2026, this laptop): billing ~30 s (now a background run); intake 49 notifications a second,
+none lost; recording ~100 ms of database work per payment, 1.7 a second with one worker and a 0.5 s gateway
+check (so ~1.5 hours for 10,000), 6.1 with four, 15.5 with sixteen, and at most ~17 a second per school however
+many workers (the receipt-number and pupil locks are per school and per pupil); dashboard 1.6 s, debtors 0.8 s,
+journal and end-of-session pack ~25–30 s each in the background; every notification became exactly one payment
+and receipt, no receipt-number gaps, and money in equals money applied plus credit. Fixed because of it: the
+outbox hand-off holding two connections; per-pupil balance and allocation queries that summed the whole school
+(`totals_subquery(within)` / `paid_subquery(within)`; 500 → ~100 ms per payment); the end-of-session pack
+crashing over 5,000 debtors; billing timing out; statistics refreshed after bulk imports and billing
+(`refresh_statistics`); the webhook limit raised to 3,000 a minute per address.
+
 Celery runs webhook processing, reminders, bulk invoicing and message sending,
 so HTTP requests stay fast. Tasks take IDs, never ORM objects. Each task opens
 its own session with an explicit tenant scope. Tasks are acknowledged late, so a
@@ -1258,8 +1281,12 @@ outbox.enqueue(session, "accounts.send_password_link", {"user_id": ..., "purpose
 session.commit()   # the business change and the task commit together
 ```
 
-After the commit, the rows are handed to Celery straight away (one query for
-all of them). If Redis is down, the rows stay pending and the `outbox.sweep`
+After the commit, once the session has released its connection, the rows are
+handed to Celery straight away (one query for all of them). Not during
+`after_commit`: the connection is still held there, and handing off needs a second
+one, so under a burst (the load test's 20 notifications at once) every request held
+one connection and waited for another until the pool ran dry. The hand-off runs on
+`after_transaction_end` of the outermost transaction instead. If Redis is down, the rows stay pending and the `outbox.sweep`
 beat task retries them every 30 seconds with exponential backoff. After 8
 failures a row is marked `failed` and logged at ERROR;
 `outbox.requeue_failed()` puts it back once the cause is fixed. A rolled-back
@@ -1339,7 +1366,7 @@ production.
 | Receipts | `GET /payments/{id}/receipt`; `GET /receipts/{id}/pdf`; `GET /public/receipts/{code}` (public) |
 | Webhooks | `POST /webhooks/paystack`, `/webhooks/flutterwave` (`/webhooks/fake` when enabled; not in the API docs) |
 | Development | `POST /dev/fake-gateway/transfers` (simulate a parent's transfer; fake gateway only); `GET /dev/sms/latest?to=` (read the last text; `SMS_BACKEND=memory` only; the parent sign-in page's "Fill in the code" button uses it, shown only in the Vite dev server via `import.meta.env.DEV` and absent from production builds). Neither exists in production. |
-| Invoices | `POST /terms/{id}/invoices/generate`; `GET /terms/{id}/billing-summary`; `GET/POST /invoices`; `GET /invoices/{id}`; `POST /invoices/{id}/lines`, `/void`; `POST /invoices/{id}/plan`, `/plan/cancel`; `POST /terms/{id}/class-charges`; `POST /terms/{id}/bills/sync`; `GET/POST /students/{id}/exemptions`, `DELETE /students/{id}/exemptions/{fee_item_id}`; `POST /students/{id}/charges`; `GET /students/{id}/account` |
+| Invoices | `POST /terms/{id}/invoices/generate`; `GET /billing-runs/{id}`; `GET /terms/{id}/billing-summary`; `GET/POST /invoices`; `GET /invoices/{id}`; `POST /invoices/{id}/lines`, `/void`; `POST /invoices/{id}/plan`, `/plan/cancel`; `POST /terms/{id}/class-charges`; `POST /terms/{id}/bills/sync`; `GET/POST /students/{id}/exemptions`, `DELETE /students/{id}/exemptions/{fee_item_id}`; `POST /students/{id}/charges`; `GET /students/{id}/account` |
 
 Lists are paginated with `limit`/`offset` and return `{items, total, limit, offset}`.
 

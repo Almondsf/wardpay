@@ -16,6 +16,7 @@ stores a balance that could drift.
 import enum
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -342,3 +343,31 @@ class PlanTemplate(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
     charge_value: Mapped[int] = mapped_column(BigInteger, default=0)
     # [{"percent_bp": 5000, "day": 0}, ...]: shares add up to 10000, days rise, 2 to 12 parts
     parts: Mapped[list[dict[str, int]]] = mapped_column(JSONB)
+
+
+class BillingRunStatus(enum.StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class BillingRun(TenantMixin, UUIDPrimaryKey, Base):
+    """
+    One press of "Generate invoices", made in the background (fees/billing_runs.py) so a big school's bills
+    never time out in the browser (load test, 2026-10-25: 10,000 pupils took ~30 s). Marked done in the same
+    transaction that makes the bills; the result is kept for the screen.
+    """
+
+    __tablename__ = "billing_runs"
+    __table_args__ = (Index("ix_billing_runs_school_created", "school_id", "created_at"),)
+
+    term_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("terms.id", ondelete="RESTRICT"))
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    status: Mapped[BillingRunStatus] = mapped_column(
+        enum_type(BillingRunStatus, "billing_run_status"), default=BillingRunStatus.PENDING
+    )
+    report: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error: Mapped[str] = mapped_column(String(300), default="")
+    requested_by: Mapped[uuid.UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -27,7 +27,7 @@ from typing import Any
 
 from sqlalchemy import DateTime, Index, Integer, String, event, func, select, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, Session, SessionTransaction, mapped_column
 
 from app.core.base import Base, UUIDPrimaryKey, enum_type
 
@@ -157,11 +157,25 @@ def requeue_failed(task_ids: list[uuid.UUID] | None = None) -> int:
         return int(result.rowcount)  # type: ignore[attr-defined]
 
 
+_COMMITTED_KEY = "outbox_committed"
+
+
 @event.listens_for(Session, "after_commit")
-def _dispatch_after_commit(session: Session) -> None:
-    pending: list[uuid.UUID] = session.info.pop(_PENDING_KEY, [])
-    if pending:
-        dispatch(pending)
+def _committed(session: Session) -> None:
+    # Not dispatched here: the session still holds its connection during after_commit, and dispatching
+    # needs a second one. Under a burst (a load test with 20 notifications at once) every request held one
+    # connection and waited for another, and the pool ran dry. So wait until the connection is released.
+    committed: list[uuid.UUID] = session.info.pop(_PENDING_KEY, [])
+    if committed:
+        session.info.setdefault(_COMMITTED_KEY, []).extend(committed)
+
+
+@event.listens_for(Session, "after_transaction_end")
+def _dispatch_after_release(session: Session, transaction: SessionTransaction) -> None:
+    if transaction.parent is None:  # the outermost transaction: its connection is back in the pool
+        committed: list[uuid.UUID] = session.info.pop(_COMMITTED_KEY, [])
+        if committed:
+            dispatch(committed)
 
 
 @event.listens_for(Session, "after_rollback")

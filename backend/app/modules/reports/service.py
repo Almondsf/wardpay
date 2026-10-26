@@ -460,12 +460,18 @@ def debtors(session: Session, filters: DebtorFilters, params: PageParams, today:
     return DebtorsPage([_debtor(r, today) for r in rows], total, int(total_owed or 0))
 
 
-def all_debtors(session: Session, filters: DebtorFilters, today: date | None = None) -> list[Debtor]:
-    """For exports: every matching debtor, up to EXPORT_ROW_LIMIT."""
+def all_debtors(
+    session: Session, filters: DebtorFilters, today: date | None = None, *, limit: int | None = EXPORT_ROW_LIMIT
+) -> list[Debtor]:
+    """
+    For exports: every matching debtor, up to `limit` (downloads made while someone waits). Files built in
+    the background pass None: the end-of-session pack must list everyone (load test: 10,000 pupils).
+    """
     today = today or lagos_today()
-    rows = session.execute(_debtors_query(filters, today).limit(EXPORT_ROW_LIMIT + 1)).all()
-    if len(rows) > EXPORT_ROW_LIMIT:
-        raise DomainError(f"More than {EXPORT_ROW_LIMIT} students match. Narrow it down (e.g. by class).")
+    stmt = _debtors_query(filters, today)
+    rows = session.execute(stmt if limit is None else stmt.limit(limit + 1)).all()
+    if limit is not None and len(rows) > limit:
+        raise DomainError(f"More than {limit} students match. Narrow it down (e.g. by class).")
     return [_debtor(r, today) for r in rows]
 
 

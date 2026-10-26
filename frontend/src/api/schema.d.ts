@@ -447,6 +447,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A term's bills being made in the background: 202 while running, the result when done */
+        get: operations["fees_billing_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cash-book": {
         parameters: {
             query?: never;
@@ -5131,6 +5148,17 @@ export interface components {
              * @description Fee notices queued for parents (when notify_parents)
              */
             notices_queued: number;
+            /**
+             * Pending
+             * @description Still making the bills: poll GET /billing-runs/{run_id}
+             * @default false
+             */
+            pending?: boolean;
+            /**
+             * Run Id
+             * @description The background billing run (not for a preview)
+             */
+            run_id?: string | null;
             /** Sample */
             sample: components["schemas"]["DraftInvoiceOut"][];
             /** Total Kobo */
@@ -10496,6 +10524,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignedIn"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    fees_billing_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationOut"];
                 };
             };
             /** @description Bad Request */
@@ -27329,6 +27442,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GenerationOut"];
                 };
+            };
+            /** @description Started in the background: poll GET /billing-runs/{run_id} */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {

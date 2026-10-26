@@ -9,9 +9,10 @@ filled in by the payments module). Nothing stores a balance that could drift.
 
 import uuid
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Any
 
 from sqlalchemy import ColumnElement, Select, and_, case, func, literal, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -52,18 +53,21 @@ INVOICE_SEQUENCE = "invoice"
 # --- Ledger reads ----------------------------------------------------------------------------------
 
 
-def totals_subquery() -> Subquery:
-    """invoice_id -> total_kobo (sum of its lines)."""
-    return (
-        select(InvoiceLine.invoice_id, func.sum(InvoiceLine.amount_kobo).label("total_kobo"))
-        .group_by(InvoiceLine.invoice_id)
-        .subquery("invoice_totals")
-    )
+def totals_subquery(within: Any = None) -> Subquery:
+    """
+    invoice_id -> total_kobo (sum of its lines). `within` (invoice ids, or a select of them) limits it to
+    those bills: Postgres can't push an outer filter into the grouping, so without it every bill in the
+    school is totalled. Per-pupil paths (a payment arriving) must pass it (load test, 2026-10-25).
+    """
+    stmt = select(InvoiceLine.invoice_id, func.sum(InvoiceLine.amount_kobo).label("total_kobo"))
+    if within is not None:
+        stmt = stmt.where(InvoiceLine.invoice_id.in_(within))
+    return stmt.group_by(InvoiceLine.invoice_id).subquery("invoice_totals")
 
 
-def paid_subquery() -> Subquery:
-    """invoice_id -> paid_kobo (see ledger.py)."""
-    return ledger.paid_subquery()
+def paid_subquery(within: Any = None) -> Subquery:
+    """invoice_id -> paid_kobo (see ledger.py); `within` as for totals_subquery."""
+    return ledger.paid_subquery(within)
 
 
 @dataclass(frozen=True)
@@ -139,7 +143,7 @@ def invoices_query(
 def amounts_for(session: Session, invoice_ids: list[uuid.UUID]) -> dict[uuid.UUID, InvoiceAmounts]:
     if not invoice_ids:
         return {}
-    totals, paid = totals_subquery(), paid_subquery()
+    totals, paid = totals_subquery(invoice_ids), paid_subquery(invoice_ids)
     rows = session.execute(
         select(Invoice.id, func.coalesce(totals.c.total_kobo, 0), func.coalesce(paid.c.paid_kobo, 0))
         .outerjoin(totals, totals.c.invoice_id == Invoice.id)
@@ -175,7 +179,8 @@ def account_summaries(session: Session, student_ids: list[uuid.UUID]) -> dict[uu
     """Billed, paid and outstanding per student, for any number of students, in one query."""
     if not student_ids:
         return {}
-    totals, paid = totals_subquery(), paid_subquery()
+    theirs = select(Invoice.id).where(Invoice.student_id.in_(student_ids))
+    totals, paid = totals_subquery(theirs), paid_subquery(theirs)
     total_col, paid_col = func.coalesce(totals.c.total_kobo, 0), func.coalesce(paid.c.paid_kobo, 0)
     balance = total_col - paid_col
     rows = session.execute(
@@ -402,7 +407,9 @@ def generate_term_invoices(
     class_level_ids: set[uuid.UUID] | None,
     dry_run: bool,
     notify_parents: bool = False,
+    before_commit: Callable[[GenerationReport], None] | None = None,
 ) -> GenerationReport:
+    """`before_commit`: stamp something in the same transaction as the bills (a background billing run)."""
     if not dry_run:  # a second "Bill this term" at the same moment waits, then sees these bills
         locks.hold(session, "billing", ctx.school_id)
     term = get_or_404(session, Term, term_id, label="Term")
@@ -471,6 +478,8 @@ def generate_term_invoices(
             "fee_notices": report.notices_queued,
         },
     )
+    if before_commit is not None:
+        before_commit(report)
     session.commit()
     return report
 

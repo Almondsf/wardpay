@@ -12,6 +12,7 @@ from app.core.db import SessionLocal
 from app.core.tenancy import scope_to_school
 from app.modules.accounting import export_jobs
 from app.modules.accounts import tasks as accounts_tasks
+from app.modules.fees import billing_runs
 from app.modules.notifications import service as notifications
 from app.modules.notifications.sms import SmsError
 from app.modules.parents import tasks as parents_tasks
@@ -132,3 +133,8 @@ def build_export(school_id: str, export_id: str) -> str:
     with SessionLocal() as session:
         scope_to_school(session, uuid.UUID(school_id))
         return export_jobs.build(session, uuid.UUID(export_id)).value
+
+
+@celery_app.task(name=billing_runs.TASK)
+def generate_bills(school_id: str, run_id: str) -> str:
+    return billing_runs.run_school(uuid.UUID(school_id), uuid.UUID(run_id))

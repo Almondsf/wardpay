@@ -757,7 +757,9 @@ def close_cash_day(body: CashCloseIn, ctx: StaffContext = APPROVE, db: Session =
 async def _webhook(gateway: GatewayCode, request: Request, db: Session) -> Response:
     if gateway not in enabled_gateways():
         return Response(status_code=status.HTTP_404_NOT_FOUND)
-    get_limiter().hit("webhook:ip", "600/minute", request.client.host if request.client else "")
+    # Notifications are signed and checked with the gateway; the limit only stops floods. Paystack sends a
+    # whole morning's transfers from a few addresses, so 600 a minute held back its own retries (load test)
+    get_limiter().hit("webhook:ip", "3000/minute", request.client.host if request.client else "")
     body = await request.body()
     headers = {k.lower(): v for k, v in request.headers.items()}
     try:  # the DB work is synchronous: keep it off the event loop

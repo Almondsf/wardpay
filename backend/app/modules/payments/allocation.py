@@ -45,8 +45,10 @@ class _Owing:
 
 def unallocated_by_payment(session: Session, student_ids: list[uuid.UUID]) -> list[tuple[uuid.UUID, uuid.UUID, int]]:
     """(payment_id, student_id, unallocated kobo) for payments with money left, oldest first."""
+    theirs = select(Payment.id).where(Payment.student_id.in_(student_ids))
     allocated = (
         select(Allocation.payment_id, func.sum(Allocation.amount_kobo).label("allocated"))
+        .where(Allocation.payment_id.in_(theirs))  # not every payment in the school
         .group_by(Allocation.payment_id)
         .subquery()
     )
@@ -81,7 +83,8 @@ def allocate(session: Session, student_ids: list[uuid.UUID]) -> list[NewAllocati
     money = [(pid, sid, left) for pid, sid, left in unallocated_by_payment(session, student_ids) if left > 0]
     if not money:
         return []
-    totals, paid = totals_subquery(), paid_subquery()
+    theirs = select(Invoice.id).where(Invoice.student_id.in_({sid for _, sid, _ in money}))
+    totals, paid = totals_subquery(theirs), paid_subquery(theirs)
     balance = func.coalesce(totals.c.total_kobo, 0) - func.coalesce(paid.c.paid_kobo, 0)
     owing = session.execute(
         select(Invoice.id, Invoice.student_id, balance)

@@ -186,6 +186,22 @@ the HTTPS redirect are in place, API docs and development-only routes are off, s
 forged Paystack webhooks and made-up receipt codes are refused. Add `--api https://<render-host>` to
 check the API directly. It exits 1 if anything failed.
 
+## Sizing for big schools
+
+From the load test (`python -m app.loadtest`, see SYSTEM_OVERVIEW section 18): recording a payment is about
+100 ms of database work plus the gateway's check (~0.5 s), so throughput is set by worker processes.
+
+| Setup | Payments recorded | 10,000 at once |
+|---|---|---|
+| Free plan, `--concurrency 1` (today) | ~1.7 a second | ~1.5 hours, and only while awake |
+| One worker, `--concurrency 4` (~1 GB RAM) | ~6 a second | ~27 minutes |
+| `--concurrency 8` or two workers of 4 | ~12–15 a second | ~12 minutes |
+
+Nothing is lost while the queue drains: notifications are stored first and processed in order. Real schools'
+payments spread over days, so for the first pilot schools one paid worker with `--concurrency 4`, a paid
+Postgres (not the 30-day free one) and an API instance that doesn't sleep are enough. Billing, the journal and
+the end-of-session pack run on the worker too.
+
 ## Background workers
 
 Run exactly one `beat` and as many `worker`s as needed. Beat hands stuck outbox
