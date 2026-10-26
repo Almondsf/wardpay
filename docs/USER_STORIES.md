@@ -14,7 +14,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ See cash taken and banked day by day and per staff member, any day the count came up short, and cash recorded for a day after it was closed.
 - ✅ Choose how one amount a parent pays for several children is shared: old balances first then clear as many children as possible, in proportion, eldest first or youngest first.
 - ✅ Sign my school up online, confirm my email, and get a checklist of what to set up next.
-- ✅ See our plan, what a term costs at our pupil numbers, where to pay, and our WardPay bills (PDF).
+- ✅ See our plan (including the fee per instalment plan), what a term costs at our pupil numbers, how many instalment plans our next bill will charge for, where to pay, and each WardPay bill line by line (and as a PDF).
 - ✅ Pay a WardPay bill by card from the console, and see it marked paid as soon as the payment clears.
 - ✅ Connect the school's own bank account so all payments settle there (the platform never holds our money).
 - ✅ Invite staff by email, choose their role, rename them, change their role, deactivate or reactivate them.

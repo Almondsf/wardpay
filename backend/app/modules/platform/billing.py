@@ -102,6 +102,19 @@ class BillingRun:
         return sum(b.total_kobo for b in self.bills)
 
 
+# How a bill's lines read, top to bottom (they have no stored order)
+LINE_ORDER = case(
+    {
+        SubscriptionLineKind.SETUP: 0,
+        SubscriptionLineKind.LICENCE: 1,
+        SubscriptionLineKind.PUPILS: 2,
+        SubscriptionLineKind.INSTALMENT_PLANS: 3,
+        SubscriptionLineKind.DISCOUNT: 4,
+    },
+    value=SubscriptionLine.kind,
+    else_=5,
+)
+
 # The per-plan fee started here: plans made before it are never charged
 PLAN_FEE_FROM = datetime(2026, 10, 25, tzinfo=UTC)
 
@@ -395,7 +408,9 @@ def invoice_detail(
     row = session.execute(invoices_query().where(SubscriptionInvoice.id == invoice_id)).first()
     if row is None:
         raise NotFound("Invoice not found.")
-    lines = list(session.scalars(select(SubscriptionLine).where(SubscriptionLine.invoice_id == invoice_id)))
+    lines = list(
+        session.scalars(select(SubscriptionLine).where(SubscriptionLine.invoice_id == invoice_id).order_by(LINE_ORDER))
+    )
     payments = list(
         session.scalars(
             select(SubscriptionPayment)
@@ -581,6 +596,7 @@ class SchoolPlanView:
     plan: Plan
     pupils_this_term: int
     next_term_estimate_kobo: int  # the pupil charge for a term at today's numbers
+    plans_since_last_bill: int = 0  # instalment plans the next bill will charge for
 
 
 def school_plan(session: Session, school_id: uuid.UUID) -> SchoolPlanView:
@@ -597,4 +613,18 @@ def school_plan(session: Session, school_id: uuid.UUID) -> SchoolPlanView:
         )
         or 0
     )
-    return SchoolPlanView(plan, int(pupils), int(pupils) * termly(plan.per_pupil_year_kobo))
+    plans_made = (
+        session.scalar(select(func.count()).select_from(PaymentPlan).where(*_unbilled_plans(datetime.now(UTC)))) or 0
+    )
+    return SchoolPlanView(plan, int(pupils), int(pupils) * termly(plan.per_pupil_year_kobo), int(plans_made))
+
+
+def lines_for(session: Session, invoice_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[SubscriptionLine]]:
+    """Each bill's lines, for any number of bills, in one query."""
+    found: dict[uuid.UUID, list[SubscriptionLine]] = {i: [] for i in invoice_ids}
+    if invoice_ids:
+        for line in session.scalars(
+            select(SubscriptionLine).where(SubscriptionLine.invoice_id.in_(invoice_ids)).order_by(LINE_ORDER)
+        ):
+            found[line.invoice_id].append(line)
+    return found

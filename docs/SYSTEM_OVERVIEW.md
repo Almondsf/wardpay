@@ -1052,6 +1052,12 @@ can be moved (`PUT .../due-date`, not before the bill was issued, with a reason)
 Both are audited for the school and the platform.
 
 **Paying by card (`card_payments.py`).** Staff with `payments.record` press
+**What the school sees** (`GET /subscription`, Setup → Subscription): its plan's prices (set-up fee,
+per pupil, the fee per instalment plan), the pupil charge at this term's numbers, how many instalment
+plans the next bill will charge for and how much, and each bill with its lines ("What it's for": set-up
+fee, pupils × price, instalment plans × fee, discounts), all lines in one query and in a fixed order
+(`billing.LINE_ORDER`, also used by the PDF).
+
 **Pay by card** on an unpaid bill (`POST /subscription/invoices/{id}/checkout`).
 A `SubscriptionCheckout` (reference `WS…`; school-fee checkouts are `SP…`) opens a
 hosted checkout on the active payment provider for what's left on the bill, with

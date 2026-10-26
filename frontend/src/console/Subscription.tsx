@@ -82,10 +82,22 @@ export function Subscription() {
             <dd>
               {formatKobo(plan.per_pupil_term_kobo)} each term ({formatKobo(plan.per_pupil_year_kobo)} a year)
             </dd>
+            {plan.instalment_plan_fee_kobo > 0 && (
+              <>
+                <dt>Instalment plans</dt>
+                <dd>{formatKobo(plan.instalment_plan_fee_kobo)} for each family put on a plan, on your next bill</dd>
+              </>
+            )}
           </dl>
           <p className="muted small">
             With {sub.data.pupils_this_term} pupils this term, the pupil charge for a term is {formatKobo(sub.data.next_term_estimate_kobo)}.
           </p>
+          {sub.data.plans_since_last_bill > 0 && (
+            <p className="muted small">
+              {sub.data.plans_since_last_bill} instalment {sub.data.plans_since_last_bill === 1 ? 'plan' : 'plans'} made since your last
+              bill: {formatKobo(sub.data.plans_since_last_bill_kobo)} on the next one.
+            </p>
+          )}
         </section>
         <section className="card" aria-label="How to pay">
           <h2>How to pay</h2>
@@ -134,6 +146,19 @@ export function Subscription() {
                       <span className={`badge ${i.status === 'paid' ? 'ok' : i.status === 'overdue' ? 'danger' : ''}`}>
                         {i.status === 'paid' ? 'Paid' : i.status === 'overdue' ? 'Overdue' : 'Void'}
                       </span>
+                    )}
+                    {i.lines.length > 0 && (
+                      <details className="bill-lines">
+                        <summary className="small">What it’s for</summary>
+                        <ul className="small">
+                          {i.lines.map((ln, n) => (
+                            <li key={n}>
+                              {ln.description}: {ln.quantity > 1 ? `${ln.quantity} × ${formatKobo(ln.unit_kobo)} = ` : ''}
+                              <strong>{formatKobo(ln.amount_kobo)}</strong>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
                   </td>
                   <td className="small">{i.period}</td>

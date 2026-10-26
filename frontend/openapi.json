@@ -8424,6 +8424,98 @@
         "title": "SchoolDetailOut",
         "type": "object"
       },
+      "SchoolInvoiceOut": {
+        "properties": {
+          "balance_kobo": {
+            "title": "Balance Kobo",
+            "type": "integer"
+          },
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "lines": {
+            "description": "What the bill is made of",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "paid_kobo": {
+            "title": "Paid Kobo",
+            "type": "integer"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "plan_name": {
+            "title": "Plan Name",
+            "type": "string"
+          },
+          "pupils": {
+            "title": "Pupils",
+            "type": "integer"
+          },
+          "school_id": {
+            "format": "uuid",
+            "title": "School Id",
+            "type": "string"
+          },
+          "school_name": {
+            "title": "School Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "unpaid",
+              "overdue",
+              "paid",
+              "void"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_kobo": {
+            "title": "Total Kobo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "school_id",
+          "school_name",
+          "plan_name",
+          "period",
+          "pupils",
+          "issued_at",
+          "due_date",
+          "total_kobo",
+          "paid_kobo",
+          "balance_kobo",
+          "status",
+          "lines"
+        ],
+        "title": "SchoolInvoiceOut",
+        "type": "object"
+      },
       "SchoolOption": {
         "properties": {
           "children": {
@@ -9911,7 +10003,7 @@
         "properties": {
           "invoices": {
             "items": {
-              "$ref": "#/components/schemas/SubscriptionInvoiceOut"
+              "$ref": "#/components/schemas/SchoolInvoiceOut"
             },
             "title": "Invoices",
             "type": "array"
@@ -9933,6 +10025,15 @@
           "plan": {
             "$ref": "#/components/schemas/PlatformPlanOut"
           },
+          "plans_since_last_bill": {
+            "description": "Instalment plans made since the last bill: on the next one",
+            "title": "Plans Since Last Bill",
+            "type": "integer"
+          },
+          "plans_since_last_bill_kobo": {
+            "title": "Plans Since Last Bill Kobo",
+            "type": "integer"
+          },
           "pupils_this_term": {
             "title": "Pupils This Term",
             "type": "integer"
@@ -9942,6 +10043,8 @@
           "plan",
           "pupils_this_term",
           "next_term_estimate_kobo",
+          "plans_since_last_bill",
+          "plans_since_last_bill_kobo",
           "pay_to",
           "invoices"
         ],

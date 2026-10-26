@@ -7178,6 +7178,55 @@ export interface components {
             /** Students Active */
             students_active: number;
         };
+        /** SchoolInvoiceOut */
+        SchoolInvoiceOut: {
+            /** Balance Kobo */
+            balance_kobo: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /**
+             * Lines
+             * @description What the bill is made of
+             */
+            lines: components["schemas"]["SubscriptionLineOut"][];
+            /** Number */
+            number: number;
+            /** Paid Kobo */
+            paid_kobo: number;
+            /** Period */
+            period: string;
+            /** Plan Name */
+            plan_name: string;
+            /** Pupils */
+            pupils: number;
+            /**
+             * School Id
+             * Format: uuid
+             */
+            school_id: string;
+            /** School Name */
+            school_name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unpaid" | "overdue" | "paid" | "void";
+            /** Total Kobo */
+            total_kobo: number;
+        };
         /** SchoolOption */
         SchoolOption: {
             /**
@@ -7779,11 +7828,18 @@ export interface components {
         /** SubscriptionOut */
         SubscriptionOut: {
             /** Invoices */
-            invoices: components["schemas"]["SubscriptionInvoiceOut"][];
+            invoices: components["schemas"]["SchoolInvoiceOut"][];
             /** Next Term Estimate Kobo */
             next_term_estimate_kobo: number;
             pay_to: components["schemas"]["BankDetailsOut"] | null;
             plan: components["schemas"]["PlatformPlanOut"];
+            /**
+             * Plans Since Last Bill
+             * @description Instalment plans made since the last bill: on the next one
+             */
+            plans_since_last_bill: number;
+            /** Plans Since Last Bill Kobo */
+            plans_since_last_bill_kobo: number;
             /** Pupils This Term */
             pupils_this_term: number;
         };

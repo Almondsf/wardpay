@@ -17,6 +17,8 @@ const plan = {
   setup_fee_kobo: 5_000_000,
   per_pupil_year_kobo: 150_000,
   per_pupil_term_kobo: 50_000,
+  instalment_plan_fee_kobo: 20_000,
+  plan_charge_per_payment_kobo: 30_000,
   is_default: true,
   is_active: true,
   schools: 0,
@@ -35,13 +37,32 @@ const invoice = (status: string, balance: number) => ({
   paid_kobo: 10_000_000 - balance,
   balance_kobo: balance,
   status,
+  lines: [
+    { kind: 'pupils', description: '2026/2027 First term: pupils enrolled', quantity: 100, unit_kobo: 50_000, amount_kobo: 5_000_000 },
+    { kind: 'setup', description: 'Set-up fee (once)', quantity: 1, unit_kobo: 4_400_000, amount_kobo: 4_400_000 },
+    {
+      kind: 'instalment_plans',
+      description: 'Instalment plans made since the last bill',
+      quantity: 3,
+      unit_kobo: 20_000,
+      amount_kobo: 60_000,
+    },
+  ],
 });
 
 function renderPage(path: string, capabilities: string[], invoiceStatus = 'unpaid', balance = 10_000_000) {
   const calls = mockApi({
     'POST /api/v1/auth/refresh': () => json(signedIn(me({ capabilities }))),
     'GET /api/v1/subscription': () =>
-      json({ plan, pupils_this_term: 100, next_term_estimate_kobo: 5_000_000, pay_to: null, invoices: [invoice(invoiceStatus, balance)] }),
+      json({
+        plan,
+        pupils_this_term: 100,
+        next_term_estimate_kobo: 5_000_000,
+        plans_since_last_bill: 2,
+        plans_since_last_bill_kobo: 40_000,
+        pay_to: null,
+        invoices: [invoice(invoiceStatus, balance)],
+      }),
     'POST /api/v1/subscription/invoices/i1/checkout': () =>
       json({ reference: REFERENCE, amount_kobo: balance, authorization_url: 'https://checkout.example/pay' }, 201),
     'POST /api/v1/subscription/checkouts/verify': () =>
@@ -96,5 +117,14 @@ describe('subscription page', () => {
     expect(await screen.findByText(/Thank you. We received ₦100,000.00/)).toBeInTheDocument();
     expect(calls.some((c) => c.url.endsWith('/subscription/checkouts/verify'))).toBe(true);
     expect(screen.queryByRole('button', { name: 'Pay by card' })).not.toBeInTheDocument();
+  });
+
+  it('shows what each bill is made of, and the plans waiting for the next one', async () => {
+    renderPage('/console/subscription', ['reports.view']);
+    expect(await screen.findByText('₦200.00 for each family put on a plan, on your next bill')).toBeInTheDocument();
+    expect(screen.getByText(/2 instalment plans made since your last bill: ₦400.00 on the next one/)).toBeInTheDocument();
+    await userEvent.click(screen.getByText('What it’s for'));
+    expect(screen.getByText(/2026\/2027 First term: pupils enrolled: 100 × ₦500.00 =/)).toBeInTheDocument();
+    expect(screen.getByText(/Instalment plans made since the last bill: 3 × ₦200.00 =/)).toBeInTheDocument();
   });
 });

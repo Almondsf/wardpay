@@ -305,3 +305,31 @@ async def test_the_rates_come_from_wardpays_pricing_plan(client, world, db, term
     token = await staff_link(client, world)
     [offer] = ada((await page(client, token)).json(), world)["plan_offers"]
     assert offer["charge_kobo"] == 1_500 * NAIRA  # 3 x ₦500 + ₦0
+
+
+async def test_the_school_sees_what_its_wardpay_bill_is_made_of(client, world, db, term_running):
+    await add_plan(client, world)
+    await generate(client, world)
+    token = await staff_link(client, world)
+    for child in (await page(client, token)).json()["children"]:
+        offer = child["plan_offers"][0]
+        await client.post(
+            f"/api/v1/public/pay/{token}/plan",
+            json={"invoice_id": offer["invoice_id"], "template_id": offer["template_id"]},
+        )
+    proprietor = headers_for(db, make_user(db, world["school"], Role.PROPRIETOR))
+    platform = headers_for(db, make_user(db, None, Role.PLATFORM_ADMIN))
+    db.commit()
+    before = (await client.get("/api/v1/subscription", headers=proprietor)).json()
+    assert before["plan"]["instalment_plan_fee_kobo"] == 200 * NAIRA
+    assert (before["plans_since_last_bill"], before["plans_since_last_bill_kobo"]) == (2, 400 * NAIRA)
+
+    assert (
+        await client.post("/api/v1/platform/billing/generate", headers=platform, json={"dry_run": False})
+    ).status_code == 200
+    after = (await client.get("/api/v1/subscription", headers=proprietor)).json()
+    assert after["plans_since_last_bill"] == 0
+    [bill] = after["invoices"]
+    kinds = [ln["kind"] for ln in bill["lines"]]
+    assert kinds == sorted(kinds, key=["setup", "licence", "pupils", "instalment_plans", "discount"].index)
+    assert kinds[-1] == "instalment_plans" and sum(ln["amount_kobo"] for ln in bill["lines"]) == bill["total_kobo"]

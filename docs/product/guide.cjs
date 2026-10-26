@@ -646,8 +646,12 @@ const SECTIONS = [
       {
         name: 'Subscription',
         who: 'Proprietor, bursar, school admin',
-        purpose: `What the school pays for ${BRAND} (a set-up fee and a fee per pupil each term), how to pay, and the bills.`,
-        steps: ['Go to Setup → Subscription. Download a bill as a PDF, or press Pay by card; it shows as paid as soon as the payment clears.'],
+        purpose: `What the school pays for ${BRAND} (a set-up fee once, a fee per pupil each term, and a small fee for each family put on an instalment plan), how to pay, and the bills.`,
+        steps: [
+          'Go to Setup → Subscription. The plan card shows the prices, what this term’s pupils cost, and how many instalment plans the next bill will include.',
+          'Under each bill, press What it’s for to see it line by line (set-up fee, pupils × price, instalment plans × fee, any discount).',
+          'Download a bill as a PDF, or press Pay by card; it shows as paid as soon as the payment clears.',
+        ],
         notes: ['Parents never pay anything to use ' + BRAND + '.'],
       },
     ],
@@ -742,6 +746,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['26 Oct 2026', 'Subscription: each WardPay bill line by line, the instalment plan fee, and plans waiting for the next bill.'],
   ['26 Oct 2026', 'Generating a big school’s bills now runs in the background and shows the result when done.'],
   ['25 Oct 2026', 'WardPay’s standard plan charge (₦300 a payment + ₦200), which schools can raise but not lower.'],
   ['25 Oct 2026', 'Putting a whole family on a plan from the pupil’s page, and telling the parent by WhatsApp or text.'],

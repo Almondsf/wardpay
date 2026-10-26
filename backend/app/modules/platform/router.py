@@ -252,12 +252,18 @@ class BankDetailsOut(BaseModel):
     account_name: str
 
 
+class SchoolInvoiceOut(SubscriptionInvoiceOut):
+    lines: list[SubscriptionLineOut] = Field(description="What the bill is made of")
+
+
 class SubscriptionOut(BaseModel):
     plan: PlatformPlanOut
     pupils_this_term: int
     next_term_estimate_kobo: int
+    plans_since_last_bill: int = Field(description="Instalment plans made since the last bill: on the next one")
+    plans_since_last_bill_kobo: int
     pay_to: BankDetailsOut | None
-    invoices: list[SubscriptionInvoiceOut]
+    invoices: list[SchoolInvoiceOut]
 
 
 class SubscriptionCheckoutOut(BaseModel):
@@ -609,12 +615,15 @@ def my_subscription(
     ctx: StaffContext = Depends(require(Capability.REPORTS_VIEW)), db: Session = Depends(get_db)
 ) -> SubscriptionOut:
     view = billing.school_plan(db, ctx.school_id)
-    rows = db.execute(billing.invoices_query(school_id=ctx.school_id).limit(100)).all()
+    rows = [billing.to_row(r) for r in db.execute(billing.invoices_query(school_id=ctx.school_id).limit(100)).all()]
+    lines = billing.lines_for(db, [r.id for r in rows])
     settings = get_settings()
     return SubscriptionOut(
         plan=_plan_out(plans.PlanUsage(view.plan, 0)),
         pupils_this_term=view.pupils_this_term,
         next_term_estimate_kobo=view.next_term_estimate_kobo,
+        plans_since_last_bill=view.plans_since_last_bill,
+        plans_since_last_bill_kobo=view.plans_since_last_bill * view.plan.instalment_plan_fee_kobo,
         pay_to=BankDetailsOut(
             bank_name=settings.platform_bank_name,
             account_number=settings.platform_account_number,
@@ -622,7 +631,12 @@ def my_subscription(
         )
         if settings.platform_account_number
         else None,
-        invoices=[_invoice_out(billing.to_row(r)) for r in rows],
+        invoices=[
+            SchoolInvoiceOut(
+                **_invoice_out(r).model_dump(), lines=[SubscriptionLineOut.model_validate(ln) for ln in lines[r.id]]
+            )
+            for r in rows
+        ],
     )
 
 

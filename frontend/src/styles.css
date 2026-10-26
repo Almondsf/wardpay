@@ -637,6 +637,16 @@ table.lines {
   border-radius: 10px;
 }
 
+.bill-lines summary {
+  cursor: pointer;
+  color: var(--primary);
+}
+
+.bill-lines ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 .plan-family {
   list-style: none;
   margin: 0 0 12px;
