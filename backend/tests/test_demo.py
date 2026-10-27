@@ -149,3 +149,15 @@ def test_bare_demo_for_browser_tests(db):
     school = _demo_school(db)
     assert db.scalar(select(func.count()).where(Student.school_id == school.id)) == 60
     assert db.scalar(select(func.count()).where(Invoice.school_id == school.id)) == 0
+
+
+def test_demo_payouts_use_paystack_fees():
+    from app.demo_extras import paystack_fee
+    from app.modules.payments.models import PaymentMethod
+
+    transfer, card = PaymentMethod.VIRTUAL_ACCOUNT, PaymentMethod.CARD
+    assert paystack_fee(10_000 * 100, transfer) == 100 * 100  # 1%
+    assert paystack_fee(150_000 * 100, transfer) == 300 * 100  # capped at ₦300
+    assert paystack_fee(2_000 * 100, card) == 30 * 100  # 1.5%, no ₦100 under ₦2,500
+    assert paystack_fee(10_000 * 100, card) == 250 * 100  # 1.5% + ₦100
+    assert paystack_fee(500_000 * 100, card) == 2_000 * 100  # capped at ₦2,000

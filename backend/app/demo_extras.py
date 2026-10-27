@@ -463,27 +463,41 @@ def _close_last_session(session: Session, proprietor: StaffContext) -> None:
 # --- Paid into the bank (fake gateway) ------------------------------------------------------------------------
 
 
+def paystack_fee(amount_kobo: int, method: PaymentMethod) -> int:
+    """
+    What Paystack keeps (its Nigerian pricing): a transfer into a pupil's dedicated account is 1% capped at ₦300;
+    a card (or any checkout) payment is 1.5%, plus ₦100 from ₦2,500, capped at ₦2,000.
+    """
+    if method == PaymentMethod.VIRTUAL_ACCOUNT:
+        return min(amount_kobo // 100, 300 * 100)
+    fee = amount_kobo * 150 // 10_000 + (100 * 100 if amount_kobo >= 2_500 * 100 else 0)
+    return min(fee, 2_000 * 100)
+
+
 def _payouts(session: Session, school_id: uuid.UUID, subaccount: str) -> None:
     """The gateway's payouts for the last ten days, matched against payments by the real sync."""
     today = lagos_today()
     since = datetime.combine(today - timedelta(days=12), time(0), tzinfo=LAGOS)
     rows = session.execute(
-        select(Payment.gateway_reference, Payment.amount_kobo, Payment.received_at)
+        select(Payment.gateway_reference, Payment.amount_kobo, Payment.received_at, Payment.method)
         .where(Payment.gateway == GatewayCode.FAKE, Payment.received_at >= since, Payment.kind == PaymentKind.RECEIPT)
         .order_by(Payment.received_at)
     ).all()
     by_day: dict[date, list[SettledTransaction]] = {}
-    for reference, amount, at in rows:
+    for reference, amount, at, method in rows:
         payout_day = at.astimezone(LAGOS).date() + timedelta(days=1)
         if payout_day >= today or reference is None:
             continue  # still to be paid out
-        by_day.setdefault(payout_day, []).append(
-            SettledTransaction(reference, amount, min(amount * 150 // 10_000, 200_000))
-        )
+        by_day.setdefault(payout_day, []).append(SettledTransaction(reference, amount, paystack_fee(amount, method)))
     fake = FakeGateway.shared()
     days = sorted(by_day)
     for n, day in enumerate(days):
-        extra = [SettledTransaction("FAKE_UNKNOWN_7731", 25_000 * 100, 37_500)] if n == len(days) // 2 else []
+        unknown = 25_000 * 100  # a transfer WardPay never heard of
+        extra = (
+            [SettledTransaction("FAKE_UNKNOWN_7731", unknown, paystack_fee(unknown, PaymentMethod.VIRTUAL_ACCOUNT))]
+            if n == len(days) // 2
+            else []
+        )
         fake.settle(subaccount, [], on=day, extra=by_day[day] + extra)
     if days:
         settlements.sync(session, school_id)
