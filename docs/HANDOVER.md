@@ -137,6 +137,8 @@ These are standing rules from the owner. CLAUDE.md has the project rules; these 
 - 2026-10-27 **School groups** (option A: each branch stays its own school, a group above them). Bank account:
   the group chooses (shared or one per branch; comes with step 3). Who works across branches: the owner and a
   central bursar only. Billing: each branch billed as now. Head office seeing each branch's data: approved.
+  Owner, later the same day: a parent with children at several branches pays each branch separately, always
+  ("payment should be made separately if there ever is a case like that").
 
 ## Next: what's open, roughly in order
 
@@ -152,10 +154,9 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
 **Ideas waiting on the owner (2026-10-22), not started:**
 
 - **School groups**: decided and all three steps built 2026-10-27 (see Owner decisions). Owner, 2026-10-27:
-  branches "can either share or give different account numbers"; paying per branch covers both. Not built: one
-  combined payment across branches for groups sharing an account (it would need a rule for splitting one
-  transfer between branches' books, a money rule to agree first; one payment covering two branches also only
-  works with one shared Paystack subaccount).
+  branches "can either share or give different account numbers"; paying per branch covers both. **Decided
+  (owner, 2026-10-27): payments are always made separately per branch**, even when branches share a bank
+  account; there is no combined payment across branches.
 - **Giving a school all its records** (for leaving WardPay or a wind-down; on hold, owner 2026-10-24:
   "leave it till later"). Discussed: the owner first wanted a platform button sending each school (or all)
   one password-protected file by email. Recommended instead, and agreed as the shape when it's built: a

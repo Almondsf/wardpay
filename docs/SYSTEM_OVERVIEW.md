@@ -880,8 +880,8 @@ working (it names the other record), and the switch is in the new branch's activ
 Any other id (another parent, this parent at a school outside the group, a suspended
 branch) gets the same 400 `branch_invalid`. These two use `get_parent_across_branches`
 (no tenant scope; the module reads platform-wide and names the records explicitly).
-Paying stays per branch, so money always reaches that branch's own account, whether the
-group's branches share one bank account or each have their own. The portal shows an "At
+Paying is always per branch (owner, 2026-10-27: no combined payment across branches, even
+when they share a bank account), so money always reaches that branch's own books and account. The portal shows an "At
 other branches" card under the children, with **Open …** per branch.
 
 Each **portal session** (`parent_sessions`) is bound to one guardian record,

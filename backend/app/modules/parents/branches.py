@@ -3,8 +3,8 @@ Parents with children in several branches of one school group (owner, 2026-10-27
 
 Each branch is its own school, so a parent has one guardian record per branch (same phone number). Here they
 are tied together: sign in once, see what's owed at every branch on the home page, and switch between
-branches without a new code. Paying stays per branch, so money always reaches that branch's own bank account
-(the group chooses whether branches share one account or each have their own; either works).
+branches without a new code. Paying is always per branch, even when branches share a bank account (owner,
+2026-10-27: "payment should be made separately"), so money always reaches that branch's own books and account.
 
 Who counts as "the same parent": a guardian record with the same phone (blind index) at an active school of
 the **same group**. A number on file at an unrelated school is never shown or reachable from here. These reads
