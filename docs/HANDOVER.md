@@ -169,6 +169,16 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
   controls (and the school can change that address), and big files exceed attachment limits. If an
   emailed file is ever wanted: one encrypted .xlsx (msoffcrypto-tool, AES), built per school by an outbox
   job, password by SMS to the school's phone. Ties in with the open "close a school" decision.
+- **Switchable features per school (on hold, owner 2026-10-27: "let's just pend this idea").** Designed:
+  a WardPay-wide default per feature, optionally per pricing plan (tiers), and a per-school override (on /
+  off / follow the default), set in the platform console and audited. Enforced server-side (endpoints and
+  background jobs), menus hidden, data kept when off, the Subscription page shows what's included. Core
+  always on: pupils, bills, payments, receipts, dashboard, the family payment link. Switchable candidates:
+  instalment plans, reminders/notices, calls, parent portal, card payments, cash book, expenses, journal
+  and session pack, closing the books, write-offs, unusual activity, pace and forecast, pay cards, pupils'
+  account numbers, payout check, future features. Open questions for the owner: tie to pricing tiers or
+  not; the list; what happens to things in use when switched off (suggested: existing ones carry on, new
+  ones blocked).
 - **Demo reset button: dropped** (owner, 2026-10-25: "leave this out"). If it comes back: never seed the demo
   on the live site as it is (known passwords incl. a platform admin, real texts to made-up numbers, real
   Paystack calls). The safe options were a separate demo deployment (fake gateway, its own free DB) or a
