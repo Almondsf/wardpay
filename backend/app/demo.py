@@ -158,6 +158,9 @@ def seed_demo(mfa_secret: str, reset: bool, *, bare: bool = False) -> None:
         scope_platform_wide(session)
         _other_schools(session)
         session.commit()
+    from app import demo_extras  # every later feature: spending, cash book, plans, write-offs, branches…
+
+    demo_extras.add_extras(school.id, term.id, mfa_secret, FIRST_PARENT_PHONE)
 
 
 def _retire_old_demo(session: Session) -> None:
@@ -166,6 +169,9 @@ def _retire_old_demo(session: Session) -> None:
     and account numbers stop working) and rename it out of the way. Its rows stay,
     because money and audit records are never deleted.
     """
+    from app import demo_extras
+
+    demo_extras.retire(session)  # the Lekki branch and head office
     old_ids = select(School.id).where(School.slug == DEMO_SLUG).scalar_subquery()
     session.execute(delete(User).where(or_(User.school_id == old_ids, User.email == PLATFORM_EMAIL)))
     session.execute(

@@ -1587,13 +1587,31 @@ development Vite serves on 5175 and proxies `/api` to the backend on 8002.
   a little credit, a reversed teller, two entries awaiting approval, and the
   messages parents were sent (bill, receipts, reminders; a few parents opted
   out). Payments go through the real allocation code, so everything
-  reconciles, and the whole seed is about 70 SQL statements (tested). It also
-  adds three more schools (one suspended) for the platform console.
+  reconciles, and the whole seed is about 90 SQL statements (tested). It also
+  adds three more schools (one suspended) for the platform console. Then
+  `app/demo_extras.py` adds every later feature through the real services (so
+  the same rules apply and the books still add up; about 740 statements, a fixed
+  amount of work, tested): spending in six categories (approved by the
+  proprietor, one waiting, one turned down, one cancelled; some from the cash
+  drawer); cash banked every other Friday (one waiting to be confirmed) and the
+  drawer counted on the last three working days, one ₦2,000 short; a sports levy
+  for the primary classes and WAEC registration for SSS 3, a pupil exempted, two
+  one-off items; three school instalment plans, eight families put on "Pay in 3"
+  and one plan agreed by hand; an old debt written off and one write-off waiting;
+  three payments marked for a fee after they arrived; last session's books closed;
+  (fake gateway) the last ten days' payouts matched by the real sync, one with an
+  unknown payment; a second branch, **Demo Model College, Lekki** (45 pupils,
+  bills, transfers and cash; same bank account number, its own subaccount), in the
+  group **Demo Model Schools** with a group owner and a central bursar; the first
+  demo parent has a child there too; and WardPay's bills to both schools for the
+  term (with the instalment-plan fee), the branch's paid. `--reset` retires the old
+  branch and head office as well.
   `--bare` gives the small version the browser tests use: 60 students and no
   bills yet. With the fake gateway enabled, the school's bank account is
   connected and every student has an account number. Simulate a parent's
   transfer with `POST /api/v1/dev/fake-gateway/transfers`. The parent
-  `08035000000` has two children (one paid up, one owing). The seed refuses
+  `08035000000` has two children (one paid up, one owing) and a third, Kemi, at
+  the Lekki branch. The seed refuses
   to run in production.
 - **Query counts:** `tests/factories.py` has a `QueryCounter`. Bulk operations
   (import, roll-forward, outbox dispatch) have tests asserting their query

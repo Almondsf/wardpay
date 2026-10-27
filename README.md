@@ -45,12 +45,12 @@ API docs: http://localhost:8002/api/docs (not served in production).
 Demo data and the first admin:
 
 ```bash
-uv run python -m app.cli seed-demo        # "Demo Model College" mid-term: 240 billed students (plus a few loose ends), bills, payments, receipts, messages; password demo-password-123
+uv run python -m app.cli seed-demo        # "Demo Model College" mid-term: 240 billed students, bills, payments, receipts, messages, spending, cash book, plans, write-offs, payouts, a second branch and its group; password demo-password-123
 uv run python -m app.cli seed-demo --bare # the small version: 60 students, fees set, no bills yet (what the browser tests use)
 uv run python -m app.cli create-platform-admin --email you@example.com --name "Your Name"   # prints a set-password link
 ```
 
-Demo accounts: `proprietor@`, `bursar@`, `admin@` and `platform@demo.wardpay.ng`.
+Demo accounts: `proprietor@`, `bursar@`, `admin@` and `platform@demo.wardpay.ng`; head office `owner@` and `centralbursar@demo.wardpay.ng`; the Lekki branch `proprietor@` and `bursar@lekki.demo.wardpay.ng`.
 The proprietor, bursar and platform admin use two-factor sign-in with the
 secret `JBSWY3DPEHPK3PXP` (add it to an authenticator app).
 

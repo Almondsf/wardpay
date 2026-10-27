@@ -2,14 +2,27 @@
 
 from sqlalchemy import func, select, text
 
-from app import demo
+from app import demo, demo_extras
 from app.core.crypto import blind_index
 from app.core.db import SessionLocal
 from app.core.tenancy import scope_platform_wide, scope_to_school
+from app.modules.accounting.models import BookClosing
+from app.modules.accounts.models import User
+from app.modules.expenses.models import Expense
 from app.modules.fees.invoicing import account_summaries
-from app.modules.fees.models import Invoice
+from app.modules.fees.models import Invoice, PaymentPlan, PlanTemplate, StudentFeeExemption, WriteOff
 from app.modules.notifications.models import MessageLog, MessageStatus
-from app.modules.payments.models import ManualPayment, ManualPaymentStatus, Payment, PaymentKind
+from app.modules.payments.models import (
+    CashDayClose,
+    CashDeposit,
+    GatewaySettlement,
+    ManualPayment,
+    ManualPaymentStatus,
+    Payment,
+    PaymentEarmark,
+    PaymentKind,
+)
+from app.modules.platform.models import SubscriptionInvoice, SubscriptionPayment
 from app.modules.receipts.models import Receipt
 from app.modules.schools.models import School
 from app.modules.students.models import Guardian, GuardianStudent, Student
@@ -22,11 +35,23 @@ def _demo_school(db) -> School:
     return db.scalar(select(School).where(School.slug == demo.DEMO_SLUG))
 
 
-def test_lived_in_demo_reconciles(db, connection):
+def test_lived_in_demo_reconciles(db, connection, monkeypatch):
     db.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))  # the ledger's deferred checks run on every statement
+    extras: list[int] = []
+    real_extras = demo_extras.add_extras
+
+    def counted_extras(*args, **kwargs):
+        before = counter.count
+        real_extras(*args, **kwargs)
+        extras.append(counter.count - before)
+
+    monkeypatch.setattr(demo_extras, "add_extras", counted_extras)
     with QueryCounter(connection) as counter:
         demo.seed_demo("JBSWY3DPEHPK3PXP", reset=False)
-    assert counter.count < 120  # bulk statements, never one per student
+    [later_features] = extras
+    assert counter.count - later_features < 120  # bulk statements, never one per student
+    # The later features go through the real services, a fixed amount of work whatever the size of the school
+    assert later_features < 900  # about 740: each step is a few service calls, none per pupil
 
     school = _demo_school(db)
     sid = school.id
@@ -80,6 +105,43 @@ def test_lived_in_demo_reconciles(db, connection):
 
     others = set(db.scalars(select(School.slug).where(School.slug.like("demo-%"))))
     assert {"demo-kings-queens", "demo-bright-futures", "demo-sunrise"} <= others
+    _every_later_feature_has_data(db, sid)
+
+
+def _every_later_feature_has_data(db, sid) -> None:
+    scope_platform_wide(db)
+
+    def count(model, *where) -> int:
+        return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+    expenses = dict(
+        db.execute(select(Expense.status, func.count()).where(Expense.school_id == sid).group_by(Expense.status)).all()
+    )
+    assert set(expenses) == {"approved", "pending", "rejected", "voided"}
+    assert count(CashDeposit, CashDeposit.school_id == sid) >= 2
+    closes = db.execute(
+        select(CashDayClose.counted_kobo, CashDayClose.expected_kobo).where(CashDayClose.school_id == sid)
+    )
+    assert any(counted < expected for counted, expected in closes)  # one short count
+    assert count(PlanTemplate, PlanTemplate.school_id == sid) == 3
+    assert count(PaymentPlan, PaymentPlan.school_id == sid) >= 5
+    assert {s for (s,) in db.execute(select(WriteOff.status).where(WriteOff.school_id == sid))} == {
+        "approved",
+        "pending",
+    }
+    assert count(StudentFeeExemption, StudentFeeExemption.school_id == sid) == 1
+    assert count(PaymentEarmark, PaymentEarmark.school_id == sid) >= 1
+    assert count(BookClosing, BookClosing.school_id == sid) == 1
+    assert count(GatewaySettlement, GatewaySettlement.school_id == sid) > 0
+    # The Lekki branch, the group and its head office, and a parent with children at both
+    branch = db.scalar(select(School).where(School.slug == demo_extras.BRANCH_SLUG))
+    assert branch.group_id is not None and db.get(School, sid).group_id == branch.group_id
+    assert count(User, User.group_id == branch.group_id) == 2
+    assert count(Payment, Payment.school_id == branch.id) > 10
+    assert count(Guardian, Guardian.phone_index == blind_index(demo.FIRST_PARENT_PHONE)) == 2
+    # WardPay billed both schools, and the branch has paid
+    assert count(SubscriptionInvoice, SubscriptionInvoice.school_id.in_([sid, branch.id])) == 2
+    assert count(SubscriptionPayment) == 1
 
 
 def test_bare_demo_for_browser_tests(db):

@@ -243,7 +243,10 @@ signs in without a code locally; production refuses it) and `SMS_BACKEND=memory`
 
 **Demo accounts** (password `demo-password-123`, authenticator setup key `JBSWY3DPEHPK3PXP`):
 `admin@demo.wardpay.ng` (Ada Obi, school admin; no code locally), `bursar@…` and `proprietor@…`
-(code required), `platform@…` (platform admin). Demo parent: phone **0803 500 0000**; on the code step,
+(code required), `platform@…` (platform admin). Head office of the group "Demo Model Schools":
+`owner@demo.wardpay.ng` (owner) and `centralbursar@demo.wardpay.ng`; the Lekki branch's own staff:
+`proprietor@lekki.demo.wardpay.ng`, `bursar@lekki.demo.wardpay.ng` (all with the code). Demo parent: phone
+**0803 500 0000** (children at both branches); on the code step,
 **"Fill in the code (demo on this computer)"** reads the texted code from the local inbox (the owner demos
 this way until Termii is set up; the button exists only in the Vite dev server; local `.env` sets
 `OTP_RATE_PER_PHONE=30/10minutes` so repeated demo sign-ins aren't blocked), or open
