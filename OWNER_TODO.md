@@ -98,8 +98,8 @@ anything that doesn't happen as described:
       Termii for their current rate card (generic and DND routes).
 
 - [ ] _(new)_ **Set the actual prices.** The model: a **set-up fee** and a **pupil fee each
-      term**, free for parents. There is no licence fee any more (removed 2026-10-23, nothing to
-      set). In the platform console (Plans), put in your real set-up and per-pupil amounts.
+      term** (plus the ₦200 per instalment plan), free for parents. In the platform console (Plans),
+      put in your real set-up and per-pupil amounts.
       The website shows no figures, only what the two fees are.
 - [ ] _(new)_ **Try paying a bill by card** (2026-10-22): sign in as a school (e.g. the demo
       school's proprietor), Subscription → **Pay by card**, and pay on Paystack's test page with

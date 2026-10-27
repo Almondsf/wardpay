@@ -1014,9 +1014,9 @@ dashboard; the public **/signup** page.
 **Pricing (the model of ParentPay in the UK, PLAN.md §3.4).** The school pays and parents use
 WardPay free. A `Plan` has a one-off **set-up fee** and a **per-pupil fee per
 year**, billed a third each term for the pupils
-enrolled that term (`billing.termly()` rounds halves up to the kobo). There is
-no licence fee (owner, 2026-10-23; the column was dropped, and the `licence` line
-kind stays only so bills issued before then still read). One plan
+enrolled that term (`billing.termly()` rounds halves up to the kobo), plus a fee
+per instalment plan made (below). Those are the only charges (owner, 2026-10-27:
+the old licence fee is gone entirely, its line kind and test lines included). One plan
 is the default (partial unique index); a school can be moved to another
 (`schools.plan_id`). The migration seeds "Standard" with placeholder prices for
 the owner to set. The gateway percentage (`PLATFORM_FEE_BP`) still comes off

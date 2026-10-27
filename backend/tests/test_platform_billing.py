@@ -23,7 +23,7 @@ from tests.factories import (
 )
 
 NAIRA = 100
-STANDARD = (50_000 * NAIRA, 1_500 * NAIRA)  # set-up, per pupil per year (no licence: owner, 2026-10-23)
+STANDARD = (50_000 * NAIRA, 1_500 * NAIRA)  # set-up, per pupil per year
 
 
 def school_with_pupils(db, name, pupils, *, current_term=1):
@@ -75,7 +75,7 @@ def test_a_third_of_the_yearly_fee_per_term():
     assert termly(0) == 0
 
 
-async def test_first_bill_has_the_setup_fee_and_pupils_and_no_licence(client, world):
+async def test_first_bill_has_the_setup_fee_and_pupils(client, world):
     preview = await generate(client, world, dry_run=True)
     assert preview["dry_run"] and preview["already_billed"] == 0
     assert "Gamma School" in preview["no_current_term"]

@@ -331,5 +331,5 @@ async def test_the_school_sees_what_its_wardpay_bill_is_made_of(client, world, d
     assert after["plans_since_last_bill"] == 0
     [bill] = after["invoices"]
     kinds = [ln["kind"] for ln in bill["lines"]]
-    assert kinds == sorted(kinds, key=["setup", "licence", "pupils", "instalment_plans", "discount"].index)
+    assert kinds == sorted(kinds, key=["setup", "pupils", "instalment_plans", "discount"].index)
     assert kinds[-1] == "instalment_plans" and sum(ln["amount_kobo"] for ln in bill["lines"]) == bill["total_kobo"]

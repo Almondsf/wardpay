@@ -106,13 +106,12 @@ class BillingRun:
 LINE_ORDER = case(
     {
         SubscriptionLineKind.SETUP: 0,
-        SubscriptionLineKind.LICENCE: 1,
-        SubscriptionLineKind.PUPILS: 2,
-        SubscriptionLineKind.INSTALMENT_PLANS: 3,
-        SubscriptionLineKind.DISCOUNT: 4,
+        SubscriptionLineKind.PUPILS: 1,
+        SubscriptionLineKind.INSTALMENT_PLANS: 2,
+        SubscriptionLineKind.DISCOUNT: 3,
     },
     value=SubscriptionLine.kind,
-    else_=5,
+    else_=4,
 )
 
 # The per-plan fee started here: plans made before it are never charged

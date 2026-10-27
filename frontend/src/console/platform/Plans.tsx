@@ -8,7 +8,7 @@ import { ErrorAlert, Field, Loading, Modal, PageHeader, fieldError } from '../..
 
 type Plan = Schemas['PlatformPlanOut'];
 
-/** What schools pay: a set-up fee, and a fee per pupil per year billed a third each term. No licence fee. */
+/** What schools pay: a set-up fee, a fee per pupil per year billed a third each term, and a fee per instalment plan. */
 export function PlatformPlans() {
   const [editing, setEditing] = useState<Plan | 'new' | null>(null);
   const plans = useQuery({ queryKey: ['platform-plans'], queryFn: async () => unwrap(await api.GET('/api/v1/platform/plans')) });

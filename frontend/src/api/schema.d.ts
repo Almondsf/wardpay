@@ -7812,7 +7812,7 @@ export interface components {
          * SubscriptionLineKind
          * @enum {string}
          */
-        SubscriptionLineKind: "setup" | "licence" | "pupils" | "instalment_plans" | "discount";
+        SubscriptionLineKind: "setup" | "pupils" | "instalment_plans" | "discount";
         /** SubscriptionLineOut */
         SubscriptionLineOut: {
             /** Amount Kobo */

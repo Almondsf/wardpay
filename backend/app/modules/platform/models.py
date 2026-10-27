@@ -2,9 +2,8 @@
 The platform's own business: subscription plans and what schools pay for WardPay.
 
 The model is that of ParentPay in the UK (PLAN.md §3.4): the school pays, parents use it free.
-A plan has a one-off set-up fee and a per-pupil fee per year that is billed a
-third each term for the pupils enrolled that term. There is no licence fee
-(owner, 2026-10-23).
+A plan has a one-off set-up fee, a per-pupil fee per year that is billed a third
+each term for the pupils enrolled that term, and a fee for each instalment plan made.
 
 Subscription invoices follow the same rules as school fee invoices: amounts in
 kobo, lines are never edited (an invoice is voided and re-issued instead),
@@ -67,7 +66,6 @@ class Plan(UUIDPrimaryKey, Timestamped, Base):
 
 class SubscriptionLineKind(enum.StrEnum):
     SETUP = "setup"  # once, on a school's first bill
-    LICENCE = "licence"  # no longer billed (owner, 2026-10-23); kept so older bills still read
     PUPILS = "pupils"  # a third of the yearly per-pupil fee, for the pupils enrolled that term
     INSTALMENT_PLANS = "instalment_plans"  # the per-plan fee, for plans made since the last bill
     DISCOUNT = "discount"  # taken off by a platform admin (e.g. the set-up fee waived): the only negative line

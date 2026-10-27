@@ -9959,7 +9959,6 @@
       "SubscriptionLineKind": {
         "enum": [
           "setup",
-          "licence",
           "pupils",
           "instalment_plans",
           "discount"

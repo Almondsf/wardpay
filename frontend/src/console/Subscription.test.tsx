@@ -91,14 +91,13 @@ describe('subscription page', () => {
     setAccessToken(null);
   });
 
-  it('opens the card payment page for an unpaid bill, with no licence fee anywhere', async () => {
+  it('opens the card payment page for an unpaid bill', async () => {
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign } as Location);
     const calls = renderPage('/console/subscription', ['reports.view', 'payments.record']);
     await userEvent.click(await screen.findByRole('button', { name: 'Pay by card' }));
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.example/pay'));
     expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/subscription/invoices/i1/checkout'))).toBe(true);
-    expect(screen.queryByText('Licence')).not.toBeInTheDocument();
   });
 
   it('shows no card button without payments.record, or on a paid bill', async () => {
