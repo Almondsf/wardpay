@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import { ErrorAlert, PageHeader } from '../lib/ui';
@@ -49,6 +49,9 @@ export function ChooseBranch() {
   return (
     <>
       <PageHeader title={user.group.name} subtitle="Choose the branch to work in. You can switch any time from the menu." />
+      <p>
+        <Link to="/console/group">See all branches’ figures</Link>
+      </p>
       {branches.length === 0 ? (
         <p className="muted">There are no branches you can work in right now. Please contact WardPay support.</p>
       ) : (

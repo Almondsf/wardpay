@@ -114,6 +114,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Sign in once and work in any of my branches, switching from the Branch menu, as each branch's proprietor; my central bursar does the same with a bursar's permissions.
 - ✅ Know that each branch's own staff see only their branch, and that my branches keep their own pupils, bills, receipt numbers and bank accounts.
 - ✅ Get each branch's WardPay bill by email.
+- ✅ See every branch's money side by side with the group's totals (billed, collected, owed, received, awaiting approval), download it as Excel, and jump into any branch from there.
 
 ## Platform admin
 - ✅ Set up a school group: name it, add its schools as branches, invite the owner and central bursar, take a branch out or deactivate head-office staff (they lose access at once).

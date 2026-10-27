@@ -42,6 +42,7 @@ The roadmap (PLAN.md chunks 0 to 10) is finished. Since then, at the owner's req
 | 22 Oct | **Parent portal redesign**: one page (total at the top, each child with owed, Pay online, account number and fees; pay-all at the bottom), history and settings a tap away; demo code-fill button on laptops | `parent/ParentApp.tsx`, `parent/ParentLogin.tsx` |
 | 22 Oct | **Fees in reminders**: `{fees}` in new-bill notices and reminders (fees with money left, biggest first, max four then "N more"); WhatsApp templates get it as their last parameter | `notifications/service.py` (`fees_phrase`), `templates.py` |
 | 22 Oct | **SMS alphabet**: every text is converted to GSM-7 (NGN for ₦, plain quotes/dashes, emoji dropped) so it isn't billed as Unicode (7 pages became 3); wording preview shows SMS pages | `notifications/sms.py` (`to_gsm`, `sms_pages`) |
+| 27 Oct | **School groups, step 2: All branches** for head office (every branch's money side by side, the group's totals, 30-day takings, Excel); figures only, one query per figure whatever the number of branches | `reports/group.py`, `accounts/deps.py` (`require_head_office`), `console/GroupFigures.tsx` |
 | 27 Oct | **School groups, step 1**: groups of branches set up by the platform admin; head-office owner and central bursar sign in once and switch branch (as that branch's proprietor or bursar); branch staff unchanged. Next: combined head-office figures, then parents across branches | `platform/groups.py`, `accounts/deps.py`, `console/Branch.tsx` |
 | 27 Oct | **Licence fee removed completely** (owner): the `licence` bill-line kind is gone from the code and the database type, any old licence lines (test bills only) deleted by migration `5c1d2e7f9a01` | `platform/models.py` |
 | 26 Oct | **Schools see their WardPay bill line by line** (Subscription: What it's for, the per-plan fee, plans waiting for the next bill); bill lines now in a fixed order on page and PDF | `platform/billing.py` (`lines_for`, `LINE_ORDER`), `console/Subscription.tsx` |
@@ -149,8 +150,7 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
 
 **Ideas waiting on the owner (2026-10-22), not started:**
 
-- **School groups**: decided and step 1 built 2026-10-27 (see Owner decisions). Still to build: (2) combined
-  head-office figures across branches (dashboard and reports summed over the group, read-only); (3) parents
+- **School groups**: decided, steps 1 and 2 built 2026-10-27 (see Owner decisions). Still to build: (3) parents
   with children in several branches seeing them together, and the per-group shared bank account option (one
   payment covering two branches only works with one shared Paystack subaccount).
 - **Giving a school all its records** (for leaving WardPay or a wind-down; on hold, owner 2026-10-24:

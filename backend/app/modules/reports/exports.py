@@ -30,6 +30,7 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 from app.core.clock import LAGOS
 
 from .fee_status import FeeCell, FeeStatusReport, PupilStatus
+from .group import BranchFigures, GroupOverview
 from .service import CollectedPayment, Collections, Debtor
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -573,3 +574,56 @@ def fee_status_pdf(school: str, report: FeeStatusReport) -> bytes:
     return _pdf(
         school, f"Fee status · {report.term_label}", subtitle, blocks or [Paragraph("No pupils.", styles["Normal"])]
     )
+
+
+GROUP_HEADERS = [
+    ("Branch", 28),
+    ("Current term", 26),
+    ("Pupils", 9),
+    ("Billed this term (NGN)", 20),
+    ("Collected (NGN)", 17),
+    ("Owed this term (NGN)", 19),
+    ("Owed from before (NGN)", 21),
+    ("Pupils owing", 13),
+    ("Credit (NGN)", 14),
+    ("Received, 7 days (NGN)", 21),
+    ("Received, 30 days (NGN)", 22),
+    ("Awaiting approval (NGN)", 22),
+]
+
+
+def _group_row(b: BranchFigures) -> list[Any]:
+    return [
+        b.name,
+        b.term_label or "No current term",
+        b.pupils,
+        naira(b.billed_kobo),
+        naira(b.collected_kobo),
+        naira(b.outstanding_kobo),
+        naira(b.older_outstanding_kobo),
+        b.students_owing,
+        naira(b.credit_kobo),
+        naira(b.received_7_days_kobo),
+        naira(b.received_30_days_kobo),
+        naira(b.pending_approval_kobo),
+    ]
+
+
+def group_xlsx(report: GroupOverview) -> bytes:
+    """Head office: every branch side by side, with the group's totals."""
+    wb = Workbook()
+    ws = wb.create_sheet("Branches", 0)
+    wb.remove(wb.worksheets[1])
+    total = _group_row(report.totals)
+    total[1] = ""
+    _sheet(
+        ws,
+        school=report.group_name,
+        title="All branches",
+        subtitle=f"{len(report.branches)} branches  ·  as at {report.today:%d %b %Y}",
+        headers=GROUP_HEADERS,
+        rows=[_group_row(b) for b in report.branches],
+        money_columns={4, 5, 6, 7, 9, 10, 11, 12},
+        total=total,
+    )
+    return _save(wb)

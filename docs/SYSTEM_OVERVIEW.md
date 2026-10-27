@@ -221,9 +221,23 @@ moved off it), invite the owner or central bursar (email link; two-factor sign-i
 deactivate (signs them out), resend the link, reset two-factor. Switching branch is recorded
 in the platform's trail; what they then do is in each branch's own activity log under their
 name, and the unusual-activity page names them. A branch's WardPay bill is also emailed to
-its group's owner. Still to come (stages 2 and 3): combined head-office figures across
-branches, and parents with children in several branches (with a per-group shared bank
-account option).
+its group's owner.
+
+**All branches** (step 2, `reports/group.py`, `GET /reports/group`, Excel at
+`/reports/group/export`). Head office's one cross-branch view: per branch and in total, pupils,
+this term's bills (each branch's own current term), collected, owed this term and from before,
+pupils owing, credit, money received today / 7 / 30 days, cash awaiting approval, and the
+group's daily takings over 30 days. Figures only: no pupil, parent or payment details. It is
+the one place a school user reads several schools: `require_head_office(capability)` (in
+`accounts/deps.py`) authenticates without the branch scope, requires `group_id` and the
+capability (`reports.view`; owner and central bursar both have it), works out the group's
+active branches, then makes the session **platform-wide**, and every query in `group.py` names
+those branches (`school_id IN ...`). It doesn't need a branch to be chosen. Each figure is one
+query grouped by branch (fixed count however many branches; tested), and each branch's row
+equals that branch's own dashboard (tested). The download is recorded in the platform's trail.
+Console: **All branches** in the menu (head office only), with "Work in this branch" per row.
+Still to come (step 3): parents with children in several branches, with a per-group shared
+bank account option.
 
 ## 7. Audit trail
 
@@ -1362,6 +1376,7 @@ production.
 |---|---|
 | Health | `GET /health`, `GET /health/ready` |
 | Sign-in | `POST /auth/login`, `/auth/login/mfa`, `/auth/refresh`, `/auth/logout`; `GET /auth/me`; `POST /auth/branch` (head office) |
+| Head office | `GET /reports/group`, `GET /reports/group/export` (every branch's figures; group staff only) |
 | Passwords | `POST /auth/password/change`, `/auth/password/forgot`, `/auth/password/set` |
 | Two-factor | `POST /auth/mfa/setup`, `/auth/mfa/confirm`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` |
 | Staff | `GET/POST /staff`; `PATCH /staff/{id}`; `POST /staff/{id}/deactivate`, `/reactivate`, `/reset-mfa`, `/resend-invite` |

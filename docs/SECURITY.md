@@ -62,6 +62,11 @@ It is updated with every change that affects security.
   gets one answer (400) whether the school exists or not. Branch staff can't switch. Only platform admins
   create groups, add or remove branches and invite head-office staff; all of it is audited, and taking a
   branch out or deactivating someone takes effect on their next request. Tests: `tests/test_school_groups.py`.
+- **All branches** (`GET /reports/group`) is the only endpoint where a school user reads several schools. Its
+  dependency (`require_head_office`) refuses anyone without `group_id`, so branch staff and platform admins get
+  403; the session is platform-wide there, so every query filters to the group's active branches by id, and
+  it returns figures only (no names, phones or payment details). The Excel download is audited and rate
+  limited. Tests: `tests/test_group_figures.py`.
 - IDs in request bodies (arm, term, guardian) are loaded through the same scoped
   session, so another school's IDs are simply "not found". Tests cover each one.
 

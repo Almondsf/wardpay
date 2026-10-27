@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.core.clock import lagos_today
@@ -12,7 +12,7 @@ from app.core.errors import ERROR_RESPONSES
 from app.core.pagination import PageParams, page_params
 from app.core.ratelimit import get_limiter
 from app.core.repo import get_or_404
-from app.modules.accounts.deps import StaffContext, require
+from app.modules.accounts.deps import HeadOffice, StaffContext, require, require_head_office
 from app.modules.accounts.permissions import Capability
 from app.modules.audit.models import AuditAction
 from app.modules.audit.service import record
@@ -20,7 +20,7 @@ from app.modules.payments.models import PaymentMethod
 from app.modules.schools.models import ClassLevel, School
 from app.modules.students.models import Student, StudentStatus
 
-from . import exports, fee_status, insights, service, signals
+from . import exports, fee_status, group, insights, service, signals
 from .service import AgingBucket, DebtorFilters, DebtorSort
 
 router = APIRouter(prefix="/reports", tags=["reports"], responses=ERROR_RESPONSES)
@@ -389,3 +389,76 @@ def unusual_activity(
         count=found.count,
         signals=[SignalOut.model_validate(s, from_attributes=True) for s in found.signals],
     )
+
+
+# --- Head office of a school group -------------------------------------------------------------------
+
+HEAD_OFFICE = Depends(require_head_office(Capability.REPORTS_VIEW))
+
+
+class BranchFiguresOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    school_id: uuid.UUID | None = Field(description="None on the totals row")
+    name: str
+    term_label: str = Field(description="The branch's current term; empty if none is set")
+    pupils: int
+    billed_kobo: int
+    collected_kobo: int
+    outstanding_kobo: int
+    older_outstanding_kobo: int
+    total_outstanding_kobo: int
+    students_owing: int
+    credit_kobo: int
+    received_today_kobo: int
+    received_7_days_kobo: int
+    received_30_days_kobo: int
+    pending_approval: int
+    pending_approval_kobo: int
+
+
+class GroupDayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    day: date
+    amount_kobo: int
+
+
+class GroupOverviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    group_name: str
+    today: date
+    branches: list[BranchFiguresOut]
+    totals: BranchFiguresOut
+    by_day: list[GroupDayOut] = Field(description="Money received across the group, each of the last 30 days")
+
+
+@router.get(
+    "/group",
+    response_model=GroupOverviewOut,
+    summary="Head office: every branch's figures side by side, and the group's totals",
+)
+def get_group_overview(ho: HeadOffice = HEAD_OFFICE, db: Session = Depends(get_db)) -> GroupOverviewOut:
+    return GroupOverviewOut.model_validate(group.overview(db, ho.group_id, ho.branch_ids))
+
+
+@router.get(
+    "/group/export",
+    summary="Head office: download every branch's figures (Excel)",
+    response_class=Response,
+    responses={200: {"content": {exports.XLSX: {}}}},
+)
+def export_group_overview(ho: HeadOffice = HEAD_OFFICE, db: Session = Depends(get_db)) -> Response:
+    get_limiter().hit("reports-export:group", EXPORT_RATE, str(ho.group_id))
+    report = group.overview(db, ho.group_id, ho.branch_ids)
+    record(
+        db,
+        AuditAction.REPORT_EXPORTED,
+        school_id=None,
+        actor=ho.actor,
+        meta=ho.meta,
+        changes={"report": "group", "group": str(ho.group_id), "branches": len(report.branches)},
+    )
+    db.commit()
+    return _download(exports.group_xlsx(report), "xlsx", f"all-branches-{report.today.isoformat()}")

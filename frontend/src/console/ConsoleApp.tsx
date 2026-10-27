@@ -48,6 +48,7 @@ import { CashBook } from './payments/CashBook';
 import { Payments } from './payments/Payments';
 import { PaymentSettings } from './payments/PaymentSettings';
 import { BranchSwitcher, ChooseBranch } from './Branch';
+import { GroupFigures } from './GroupFigures';
 import { PlatformBilling } from './platform/Billing';
 import { PlatformGroupDetail, PlatformGroups } from './platform/Groups';
 import { PlatformLookup } from './platform/Lookup';
@@ -72,9 +73,11 @@ interface NavItem {
   icon: LucideIcon;
   capability: Capability;
   setup?: boolean; // listed under "Setup" in the sidebar
+  headOffice?: boolean; // only for head-office staff of a school group
 }
 
 const SCHOOL_NAV: NavItem[] = [
+  { to: '/console/group', label: 'All branches', icon: Network, capability: 'reports.view', headOffice: true },
   { to: '/console', label: 'Overview', icon: LayoutDashboard, capability: 'school.view' },
   { to: '/console/students', label: 'Students', icon: Users, capability: 'students.view' },
   { to: '/console/billing', label: 'Billing', icon: FileText, capability: 'fees.view' },
@@ -122,6 +125,7 @@ export function ConsoleApp() {
       <Route path="set-password" element={<SetPassword />} />
       <Route element={<RequireSignIn />}>
         <Route element={<Layout />}>
+          <Route path="group" element={<Guard capability="reports.view"><GroupFigures /></Guard>} />
           <Route element={<RequireBranch />}>
           <Route index element={<Home />} />
           <Route path="account" element={<Account />} />
@@ -199,7 +203,7 @@ function Layout() {
   const [navOpen, setNavOpen] = useState(false);
   useEffect(() => setNavOpen(false), [location.pathname]);
   if (!user) return null;
-  const nav = [...SCHOOL_NAV, ...PLATFORM_NAV].filter((item) => can(item.capability));
+  const nav = [...SCHOOL_NAV, ...PLATFORM_NAV].filter((item) => can(item.capability) && (!item.headOffice || !!user.group));
   const groups = [
     { label: '', items: nav.filter((item) => !item.setup) },
     { label: 'Setup', items: nav.filter((item) => item.setup) },

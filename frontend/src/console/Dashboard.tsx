@@ -549,7 +549,7 @@ function Progress({ value, label }: { value: number; label?: string }) {
 }
 
 /** Bars per day; negative days (reversals) dip below the line. Plain SVG, no chart library. */
-function DailyChart({ days }: { days: Schemas['DayTotalOut'][] }) {
+export function DailyChart({ days }: { days: { day: string; amount_kobo: number; payments?: number }[] }) {
   if (days.length === 0) return <p className="muted">No payments yet.</p>;
   const width = 600;
   const height = 160;
@@ -574,7 +574,7 @@ function DailyChart({ days }: { days: Schemas['DayTotalOut'][] }) {
               height={Math.max(h, 1)}
               className={d.amount_kobo >= 0 ? 'chart-bar' : 'chart-bar negative'}
             >
-              <title>{`${formatDate(d.day)}: ${formatKobo(d.amount_kobo)} (${d.payments} payments)`}</title>
+              <title>{`${formatDate(d.day)}: ${formatKobo(d.amount_kobo)}${d.payments === undefined ? '' : ` (${d.payments} payments)`}`}</title>
             </rect>
           );
         })}

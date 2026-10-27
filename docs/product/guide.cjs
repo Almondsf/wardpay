@@ -735,8 +735,9 @@ const SECTIONS = [
           'Under Head office, fill in the owner’s name and email, choose Owner or Central bursar and press Send invite. They choose a password from the email and turn on two-factor sign-in.',
           'Head office: after signing in, pick the branch from the Branch menu under the logo. Everything on screen is then that branch; pick another branch to switch.',
           'To take a branch out press Take out; to stop someone press Deactivate. Either takes effect at once.',
+          'Head office: press All branches in the menu to see every branch’s money side by side with the group’s totals. Press Download Excel for a copy, or Work in this branch to open one.',
         ],
-        notes: ['Combined figures for all branches, and parents with children in several branches, are coming next.'],
+        notes: ['All branches shows money only, never pupils’ or parents’ details. Parents with children in several branches are coming next.'],
       },
       {
         name: 'Subscription billing and plans',
@@ -763,6 +764,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['27 Oct 2026', 'All branches: head office sees every branch’s money side by side, with totals and an Excel download.'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once and switches branch from a menu; set up by the WardPay team.'],
   ['26 Oct 2026', 'Subscription: each WardPay bill line by line, the instalment plan fee, and plans waiting for the next bill.'],
   ['26 Oct 2026', 'Generating a big school’s bills now runs in the background and shows the result when done.'],

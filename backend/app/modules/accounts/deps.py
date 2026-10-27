@@ -62,11 +62,8 @@ class StaffContext(Principal):
     school_id: uuid.UUID
 
 
-def get_principal(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    db: Session = Depends(get_db),
-) -> Principal:
+def _authenticate(request: Request, credentials: HTTPAuthorizationCredentials | None, db: Session) -> Principal:
+    """Who is calling, and the school they act in. Leaves the session's tenant scope to the caller."""
     claims = decode_token(credentials.credentials, "access") if credentials else None
     if claims is None or "sid" not in claims:
         raise NotAuthenticated("Please sign in.", code="not_authenticated")
@@ -102,8 +99,61 @@ def get_principal(
         acting = user.school_id
     elif user.group_id is not None and school_status == SchoolStatus.ACTIVE:
         acting = auth_session.branch_id
-    scope_for_user(db, user, acting)
     return Principal(user=user, session_id=session_id, meta=request_meta(request), acting_school_id=acting)
+
+
+def get_principal(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> Principal:
+    principal = _authenticate(request, credentials, db)
+    scope_for_user(db, principal.user, principal.acting_school_id)
+    return principal
+
+
+@dataclass(frozen=True)
+class HeadOffice(Principal):
+    """Head-office staff reading across their group: the session is platform-wide, so services must filter
+    to `branch_ids` themselves (the group's active branches, worked out here)."""
+
+    group_id: uuid.UUID
+    branch_ids: tuple[uuid.UUID, ...]
+
+
+def require_head_office(capability: Capability) -> Callable[..., HeadOffice]:
+    """
+    Dependency for the few head-office endpoints that read every branch at once (owner, 2026-10-27: head
+    office may see each branch's data). Read-only figures only: anything that changes a school goes through
+    `require()` in the branch they've chosen.
+    """
+
+    def dependency(
+        request: Request,
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+        db: Session = Depends(get_db),
+    ) -> HeadOffice:
+        principal = _authenticate(request, credentials, db)
+        user = principal.user
+        if mfa_enrolment_required(user):
+            raise PermissionDenied("Turn on two-factor sign-in to continue.", code="mfa_enrolment_required")
+        if user.group_id is None or not role_has(user.role, capability):
+            raise PermissionDenied("You don't have permission to do that.")
+        branches = tuple(
+            db.scalars(select(School.id).where(School.group_id == user.group_id, School.status == SchoolStatus.ACTIVE))
+        )
+        scope_platform_wide(db)
+        return HeadOffice(
+            user=user,
+            session_id=principal.session_id,
+            meta=principal.meta,
+            acting_school_id=principal.acting_school_id,
+            group_id=user.group_id,
+            branch_ids=branches,
+        )
+
+    dependency.__name__ = f"require_head_office_{capability.value.replace('.', '_')}"
+    return dependency
 
 
 def require(capability: Capability) -> Callable[..., StaffContext]:

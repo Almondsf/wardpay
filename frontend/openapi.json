@@ -728,6 +728,104 @@
         "title": "BooksOut",
         "type": "object"
       },
+      "BranchFiguresOut": {
+        "properties": {
+          "billed_kobo": {
+            "title": "Billed Kobo",
+            "type": "integer"
+          },
+          "collected_kobo": {
+            "title": "Collected Kobo",
+            "type": "integer"
+          },
+          "credit_kobo": {
+            "title": "Credit Kobo",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "older_outstanding_kobo": {
+            "title": "Older Outstanding Kobo",
+            "type": "integer"
+          },
+          "outstanding_kobo": {
+            "title": "Outstanding Kobo",
+            "type": "integer"
+          },
+          "pending_approval": {
+            "title": "Pending Approval",
+            "type": "integer"
+          },
+          "pending_approval_kobo": {
+            "title": "Pending Approval Kobo",
+            "type": "integer"
+          },
+          "pupils": {
+            "title": "Pupils",
+            "type": "integer"
+          },
+          "received_30_days_kobo": {
+            "title": "Received 30 Days Kobo",
+            "type": "integer"
+          },
+          "received_7_days_kobo": {
+            "title": "Received 7 Days Kobo",
+            "type": "integer"
+          },
+          "received_today_kobo": {
+            "title": "Received Today Kobo",
+            "type": "integer"
+          },
+          "school_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None on the totals row",
+            "title": "School Id"
+          },
+          "students_owing": {
+            "title": "Students Owing",
+            "type": "integer"
+          },
+          "term_label": {
+            "description": "The branch's current term; empty if none is set",
+            "title": "Term Label",
+            "type": "string"
+          },
+          "total_outstanding_kobo": {
+            "title": "Total Outstanding Kobo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "school_id",
+          "name",
+          "term_label",
+          "pupils",
+          "billed_kobo",
+          "collected_kobo",
+          "outstanding_kobo",
+          "older_outstanding_kobo",
+          "total_outstanding_kobo",
+          "students_owing",
+          "credit_kobo",
+          "received_today_kobo",
+          "received_7_days_kobo",
+          "received_30_days_kobo",
+          "pending_approval",
+          "pending_approval_kobo"
+        ],
+        "title": "BranchFiguresOut",
+        "type": "object"
+      },
       "BranchIn": {
         "properties": {
           "school_id": {
@@ -3750,6 +3848,25 @@
         "title": "GroupBranchOut",
         "type": "object"
       },
+      "GroupDayOut": {
+        "properties": {
+          "amount_kobo": {
+            "title": "Amount Kobo",
+            "type": "integer"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "amount_kobo"
+        ],
+        "title": "GroupDayOut",
+        "type": "object"
+      },
       "GroupDetailOut": {
         "properties": {
           "branches": {
@@ -3827,6 +3944,46 @@
           "staff"
         ],
         "title": "GroupOut",
+        "type": "object"
+      },
+      "GroupOverviewOut": {
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchFiguresOut"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "by_day": {
+            "description": "Money received across the group, each of the last 30 days",
+            "items": {
+              "$ref": "#/components/schemas/GroupDayOut"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "group_name": {
+            "title": "Group Name",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/BranchFiguresOut"
+          }
+        },
+        "required": [
+          "group_name",
+          "today",
+          "branches",
+          "totals",
+          "by_day"
+        ],
+        "title": "GroupOverviewOut",
         "type": "object"
       },
       "GroupStaffIn": {
@@ -31228,6 +31385,194 @@
           }
         ],
         "summary": "Download each pupil's fees for a term as paid, part paid or unpaid (Excel or PDF)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/group": {
+      "get": {
+        "operationId": "reports_get_group_overview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Head office: every branch's figures side by side, and the group's totals",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/group/export": {
+      "get": {
+        "operationId": "reports_export_group_overview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Head office: download every branch's figures (Excel)",
         "tags": [
           "reports"
         ]
