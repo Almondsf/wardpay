@@ -110,7 +110,13 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 ## Anyone with a receipt
 - ✅ Check that a receipt is genuine on a public page (scan its QR code), without seeing the child's details. A reversed payment shows as reversed; a fake receipt doesn't match anything.
 
+## Owner of several schools (head office)
+- ✅ Sign in once and work in any of my branches, switching from the Branch menu, as each branch's proprietor; my central bursar does the same with a bursar's permissions.
+- ✅ Know that each branch's own staff see only their branch, and that my branches keep their own pupils, bills, receipt numbers and bank accounts.
+- ✅ Get each branch's WardPay bill by email.
+
 ## Platform admin
+- ✅ Set up a school group: name it, add its schools as branches, invite the owner and central bursar, take a branch out or deactivate head-office staff (they lose access at once).
 - ✅ Set WardPay's standard plan charge that families pay (₦300 a payment plus ₦200 a plan by default), which schools can raise but not lower.
 - ✅ Charge each school a fee per instalment plan made (₦200 by default, set per pricing plan), on its next termly bill.
 - ✅ Adjust a school's bill: waive the set-up fee or give a discount with a reason, or give them more time by moving the due date.

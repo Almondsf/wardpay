@@ -42,6 +42,7 @@ The roadmap (PLAN.md chunks 0 to 10) is finished. Since then, at the owner's req
 | 22 Oct | **Parent portal redesign**: one page (total at the top, each child with owed, Pay online, account number and fees; pay-all at the bottom), history and settings a tap away; demo code-fill button on laptops | `parent/ParentApp.tsx`, `parent/ParentLogin.tsx` |
 | 22 Oct | **Fees in reminders**: `{fees}` in new-bill notices and reminders (fees with money left, biggest first, max four then "N more"); WhatsApp templates get it as their last parameter | `notifications/service.py` (`fees_phrase`), `templates.py` |
 | 22 Oct | **SMS alphabet**: every text is converted to GSM-7 (NGN for ₦, plain quotes/dashes, emoji dropped) so it isn't billed as Unicode (7 pages became 3); wording preview shows SMS pages | `notifications/sms.py` (`to_gsm`, `sms_pages`) |
+| 27 Oct | **School groups, step 1**: groups of branches set up by the platform admin; head-office owner and central bursar sign in once and switch branch (as that branch's proprietor or bursar); branch staff unchanged. Next: combined head-office figures, then parents across branches | `platform/groups.py`, `accounts/deps.py`, `console/Branch.tsx` |
 | 27 Oct | **Licence fee removed completely** (owner): the `licence` bill-line kind is gone from the code and the database type, any old licence lines (test bills only) deleted by migration `5c1d2e7f9a01` | `platform/models.py` |
 | 26 Oct | **Schools see their WardPay bill line by line** (Subscription: What it's for, the per-plan fee, plans waiting for the next bill); bill lines now in a fixed order on page and PDF | `platform/billing.py` (`lines_for`, `LINE_ORDER`), `console/Subscription.tsx` |
 | 26 Oct | **Load test, 10,000 pupils** (`python -m app.loadtest`): books add up; fixed the outbox holding two connections under bursts, per-pupil queries summing the whole school (500 → ~100 ms a payment), the session pack crashing over 5,000 debtors, billing timing out (now a background billing run), stale statistics after bulk imports; webhook limit 3,000/min. Hosting sizes in DEPLOYMENT.md | `app/loadtest.py`, `fees/billing_runs.py`, `core/outbox.py` |
@@ -131,6 +132,9 @@ These are standing rules from the owner. CLAUDE.md has the project rules; these 
 - 2026-10-21 Money not marked for particular fees covers tuition first, then the bill's other fees in order.
 - 2026-10-22 Text messages write NGN for the naira sign (not N).
 - 2026-10-22 The parent portal stays one page for paying (no tapping into each child), for parents who aren't smartphone-savvy.
+- 2026-10-27 **School groups** (option A: each branch stays its own school, a group above them). Bank account:
+  the group chooses (shared or one per branch; comes with step 3). Who works across branches: the owner and a
+  central bursar only. Billing: each branch billed as now. Head office seeing each branch's data: approved.
 
 ## Next: what's open, roughly in order
 
@@ -145,21 +149,10 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
 
 **Ideas waiting on the owner (2026-10-22), not started:**
 
-- **School groups with several branches.** Today each branch would sign up as its own school: a staff
-  account belongs to one school and an email is unique, so a proprietor needs one email per branch;
-  there's no combined view; a parent with children in two branches picks a branch at sign-in; each
-  branch is billed separately. Proposed: keep each branch a full school (own bills, receipt numbers,
-  fees, staff, bank account; tenant isolation unchanged) and add a **group** above them. Group staff
-  (proprietor, head-office bursar) sign in once, switch branches and see combined dashboard/reports;
-  branch staff see only their branch; parents see all their children across the group on one page; the
-  platform can bill the group as one customer. Stages: (1) groups, group staff, branch switcher,
-  combined reports; (2) parent portal across branches; (3) group billing. One payment covering two
-  branches only works if they share a bank account (a Paystack split goes to one subaccount). The
-  alternative, branches as a campus label inside one school, was rejected: it fits only groups run as
-  one school, and limiting staff to a campus would need a weaker second isolation layer. **Open
-  questions** (in `OWNER_TODO.md`): shared or separate bank accounts per branch; can one bursar cover
-  several branches; a group price. This changes who sees which school's data, so confirm before
-  building.
+- **School groups**: decided and step 1 built 2026-10-27 (see Owner decisions). Still to build: (2) combined
+  head-office figures across branches (dashboard and reports summed over the group, read-only); (3) parents
+  with children in several branches seeing them together, and the per-group shared bank account option (one
+  payment covering two branches only works with one shared Paystack subaccount).
 - **Giving a school all its records** (for leaving WardPay or a wind-down; on hold, owner 2026-10-24:
   "leave it till later"). Discussed: the owner first wanted a platform button sending each school (or all)
   one password-protected file by email. Recommended instead, and agreed as the shape when it's built: a

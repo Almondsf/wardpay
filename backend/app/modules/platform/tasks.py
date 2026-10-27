@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.core.config import get_settings
 from app.core.db import SessionLocal
@@ -10,6 +10,7 @@ from app.core.email import OutgoingEmail, deliver
 from app.core.money import format_naira
 from app.core.tenancy import scope_platform_wide
 from app.modules.accounts.models import Role, User
+from app.modules.schools.models import School
 
 from . import billing
 
@@ -28,7 +29,11 @@ def send_subscription_invoice(invoice_id: str) -> int:
         recipients = list(
             session.scalars(
                 select(User.email).where(
-                    User.school_id == row.school_id,
+                    # the branch's proprietors, and its group's owner (who usually pays)
+                    or_(
+                        User.school_id == row.school_id,
+                        User.group_id == select(School.group_id).where(School.id == row.school_id).scalar_subquery(),
+                    ),
                     User.role == Role.PROPRIETOR,
                     User.is_active.is_(True),
                     User.password_hash.is_not(None),

@@ -16,6 +16,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<string | null>;
   completeMfa: (ticket: string, code: string, recovery?: boolean) => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** Head-office staff of a school group: work in another branch. Nothing cached from the last one is kept. */
+  switchBranch: (schoolId: string) => Promise<void>;
   logout: () => Promise<void>;
   can: (capability: Capability) => boolean;
 }
@@ -61,6 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(unwrap(await api.GET('/api/v1/auth/me')));
   }, []);
 
+  const switchBranch = useCallback(
+    async (schoolId: string) => {
+      const me = unwrap(await api.POST('/api/v1/auth/branch', { body: { school_id: schoolId } }));
+      queryClient.clear(); // one branch's figures must never show under another's name
+      setUser(me);
+    },
+    [queryClient],
+  );
+
   const logout = useCallback(async () => {
     try {
       await api.POST('/api/v1/auth/logout');
@@ -76,10 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       completeMfa,
       refreshUser,
+      switchBranch,
       logout,
       can: (capability) => !!user?.capabilities.includes(capability),
     }),
-    [user, loading, login, completeMfa, refreshUser, logout],
+    [user, loading, login, completeMfa, refreshUser, switchBranch, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

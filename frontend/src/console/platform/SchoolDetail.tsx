@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { api, unwrap } from '../../api/client';
 import { ROLE_LABELS, formatDate, formatDateTime, formatKobo } from '../../lib/format';
@@ -132,6 +132,8 @@ export function PlatformSchoolDetail() {
             <dd>{s.email || '—'}</dd>
             <dt>Payments</dt>
             <dd>{s.payments_connected ? 'School bank account connected' : 'Not set up yet'}</dd>
+            <dt>Group</dt>
+            <dd>{d.group_id ? <Link to={`/console/platform/groups/${d.group_id}`}>{d.group_name}</Link> : '—'}</dd>
             <dt>Last activity</dt>
             <dd>{d.last_activity_at ? formatDateTime(d.last_activity_at) : '—'}</dd>
           </dl>

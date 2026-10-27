@@ -55,6 +55,13 @@ It is updated with every change that affects security.
   known), so the staff service pins `school_id` explicitly. Tests prove a school
   can't list, view, edit, deactivate or reset another school's staff by ID.
 - Platform admins have no school capabilities, and school staff have no platform ones.
+- **School groups** (approved by the owner 2026-10-27): head-office staff (`users.group_id`, proprietor or
+  bursar only, enforced by a check constraint) act in one branch at a time, the one their session chose.
+  Every request re-checks that the branch is still in their group and active; otherwise the session has no
+  tenant scope and school endpoints answer 403 `branch_required`. Switching to anything outside the group
+  gets one answer (400) whether the school exists or not. Branch staff can't switch. Only platform admins
+  create groups, add or remove branches and invite head-office staff; all of it is audited, and taking a
+  branch out or deactivating someone takes effect on their next request. Tests: `tests/test_school_groups.py`.
 - IDs in request bodies (arm, term, guardian) are loaded through the same scoped
   session, so another school's IDs are simply "not found". Tests cover each one.
 

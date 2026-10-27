@@ -43,12 +43,30 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-def scope_for_user(session: Session, user: User) -> None:
-    """Once we know who's acting, the session acts for their school (or platform-wide for platform admins)."""
-    if user.school_id is None:
-        scope_platform_wide(session)
-    else:
+def scope_for_user(session: Session, user: User, branch_id: uuid.UUID | None = None) -> None:
+    """
+    Once we know who's acting, the session acts for their school, platform-wide for platform admins, or for
+    head-office staff the branch they're working in. Head-office staff with no branch chosen get no scope at
+    all, so touching any school's data fails closed.
+    """
+    if user.school_id is not None:
         scope_to_school(session, user.school_id)
+    elif user.group_id is not None:
+        if branch_id is not None:
+            scope_to_school(session, branch_id)
+    else:
+        scope_platform_wide(session)
+
+
+def group_branches(session: Session, group_id: uuid.UUID) -> list[School]:
+    """The branches a head-office user can work in: the group's active schools, by name."""
+    return list(
+        session.scalars(
+            select(School)
+            .where(School.group_id == group_id, School.status == SchoolStatus.ACTIVE)
+            .order_by(School.name)
+        )
+    )
 
 
 def actor_for(user: User) -> Actor:
@@ -66,6 +84,8 @@ class IssuedSession:
     expires_in: int
     refresh_token: str
     session_id: uuid.UUID
+    # Head-office staff: the branch the session is working in
+    branch_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -91,11 +111,23 @@ def _issue(session: Session, user: User, meta: RequestMeta) -> IssuedSession:
         ip_address=meta.ip,
         user_agent=meta.user_agent,
     )
+    if user.group_id is not None:  # head office starts in the first branch, by name
+        auth_session.branch_id = session.scalar(
+            select(School.id)
+            .where(School.group_id == user.group_id, School.status == SchoolStatus.ACTIVE)
+            .order_by(School.name)
+            .limit(1)
+        )
     session.add(auth_session)
     user.last_login_at = datetime.now(UTC)
     access, expires_in = _access_token(user, auth_session.id)
     return IssuedSession(
-        user=user, access_token=access, expires_in=expires_in, refresh_token=refresh, session_id=auth_session.id
+        user=user,
+        access_token=access,
+        expires_in=expires_in,
+        refresh_token=refresh,
+        session_id=auth_session.id,
+        branch_id=auth_session.branch_id,
     )
 
 
@@ -227,7 +259,12 @@ def refresh(session: Session, refresh_token: str, meta: RequestMeta) -> IssuedSe
     session.commit()
     access, expires_in = _access_token(user, auth_session.id)
     return IssuedSession(
-        user=user, access_token=access, expires_in=expires_in, refresh_token=new_token, session_id=auth_session.id
+        user=user,
+        access_token=access,
+        expires_in=expires_in,
+        refresh_token=new_token,
+        session_id=auth_session.id,
+        branch_id=auth_session.branch_id,
     )
 
 
@@ -268,6 +305,39 @@ def logout(session: Session, user: User, session_id: uuid.UUID, meta: RequestMet
     )
     record(session, AuditAction.LOGOUT, school_id=user.school_id, actor=actor_for(user), meta=meta, target=user)
     session.commit()
+
+
+def switch_branch(
+    session: Session, user: User, session_id: uuid.UUID, school_id: uuid.UUID, meta: RequestMeta
+) -> uuid.UUID:
+    """
+    Head-office staff choose which branch this device works in. Only an active school of their own group;
+    anything else gets the same answer, so other schools' ids can't be probed. Recorded in the platform's trail
+    (the request is still scoped to the branch being left); what they then do is in each branch's own log.
+    """
+    if user.group_id is None:
+        raise PermissionDenied("Only head-office staff of a school group can switch branch.")
+    branch = session.scalar(
+        select(School.id).where(
+            School.id == school_id, School.group_id == user.group_id, School.status == SchoolStatus.ACTIVE
+        )
+    )
+    if branch is None:
+        raise DomainError("That branch isn't one you can work in.", field="school_id", code="branch_invalid")
+    session.execute(
+        update(AuthSession).where(AuthSession.id == session_id, AuthSession.user_id == user.id).values(branch_id=branch)
+    )
+    record(
+        session,
+        AuditAction.BRANCH_SWITCHED,
+        school_id=None,
+        actor=actor_for(user),
+        meta=meta,
+        target=user,
+        changes={"branch": str(branch)},
+    )
+    session.commit()
+    return branch
 
 
 def revoke_sessions(session: Session, user_id: uuid.UUID, reason: str, *, keep: uuid.UUID | None = None) -> None:

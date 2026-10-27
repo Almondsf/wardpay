@@ -29,6 +29,21 @@ class FamilySplitRule(enum.StrEnum):
     YOUNGEST_FIRST = "youngest_first"
 
 
+class SchoolGroup(UUIDPrimaryKey, Timestamped, Base):
+    """
+    Several schools (branches or campuses) with one owner. Each branch stays its own tenant: its own pupils,
+    bills, numbering, bank account and WardPay bill. The group only lets head-office staff (users with
+    `group_id`) sign in once and work in any branch (owner, 2026-10-27). Set up by the platform admin.
+    """
+
+    __tablename__ = "school_groups"
+
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+
+    def __repr__(self) -> str:
+        return f"<SchoolGroup {self.name}>"
+
+
 class School(UUIDPrimaryKey, Timestamped, Base):
     """The tenant. Everything a school owns hangs off this row via TenantMixin."""
 
@@ -55,6 +70,8 @@ class School(UUIDPrimaryKey, Timestamped, Base):
     )
     # Nothing dated on or before this day can be recorded (a closed term); see accounting/periods.py
     books_closed_through: Mapped[date | None] = mapped_column(Date)
+    # The group it's a branch of, if any
+    group_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("school_groups.id", ondelete="RESTRICT"), index=True)
 
     def __repr__(self) -> str:
         return f"<School {self.slug}>"

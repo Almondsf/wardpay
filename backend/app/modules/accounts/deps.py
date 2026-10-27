@@ -8,18 +8,20 @@ request's database session gets its tenant scope.
 
 `require()` authenticates the bearer token against a live session, checks
 the capability (and MFA enrolment for roles that need it), refuses
-suspended schools, then scopes `db` to the caller's school. FastAPI caches
+suspended schools, then scopes `db` to the caller's school. Head-office staff
+of a school group act in the branch their session has chosen (`/auth/branch`),
+as a proprietor or bursar of that branch. FastAPI caches
 `get_db` per request, so the router's session is the scoped one.
 """
 
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -44,6 +46,9 @@ class Principal:
     user: User
     session_id: uuid.UUID
     meta: RequestMeta
+    # The school this request acts in: the user's own, or for head-office staff the branch they chose
+    # (None while they have none, or the one they chose left the group or was suspended)
+    acting_school_id: uuid.UUID | None = field(default=None, kw_only=True)
 
     @property
     def actor(self) -> Actor:
@@ -69,11 +74,18 @@ def get_principal(
         session_id = uuid.UUID(claims["sid"])
     except ValueError as e:
         raise NotAuthenticated("Please sign in.") from e
-    # One query per request: session, user and school status together
+    # One query per request: session, user and the school they act in. For head-office staff that's the
+    # session's branch, and only while it's still in their group.
     row = db.execute(
         select(AuthSession, User, School.status)
         .join(User, User.id == AuthSession.user_id)
-        .outerjoin(School, School.id == User.school_id)
+        .outerjoin(
+            School,
+            or_(
+                School.id == User.school_id,
+                and_(User.school_id.is_(None), School.id == AuthSession.branch_id, School.group_id == User.group_id),
+            ),
+        )
         .where(AuthSession.id == session_id, AuthSession.user_id == uuid.UUID(claims["sub"]))
     ).first()
     if row is None:
@@ -81,10 +93,17 @@ def get_principal(
     auth_session, user, school_status = row
     if auth_session.revoked_at is not None or auth_session.expires_at <= datetime.now(UTC) or not user.is_active:
         raise NotAuthenticated("Your session has ended. Please sign in again.", code="session_expired")
-    if user.school_id is not None and school_status != SchoolStatus.ACTIVE:
-        raise PermissionDenied("This school's account is suspended. Please contact support.", code="school_suspended")
-    scope_for_user(db, user)
-    return Principal(user=user, session_id=session_id, meta=request_meta(request))
+    acting: uuid.UUID | None = None
+    if user.school_id is not None:
+        if school_status != SchoolStatus.ACTIVE:
+            raise PermissionDenied(
+                "This school's account is suspended. Please contact support.", code="school_suspended"
+            )
+        acting = user.school_id
+    elif user.group_id is not None and school_status == SchoolStatus.ACTIVE:
+        acting = auth_session.branch_id
+    scope_for_user(db, user, acting)
+    return Principal(user=user, session_id=session_id, meta=request_meta(request), acting_school_id=acting)
 
 
 def require(capability: Capability) -> Callable[..., StaffContext]:
@@ -94,10 +113,19 @@ def require(capability: Capability) -> Callable[..., StaffContext]:
         user = principal.user
         if mfa_enrolment_required(user):
             raise PermissionDenied("Turn on two-factor sign-in to continue.", code="mfa_enrolment_required")
-        if user.school_id is None or not role_has(user.role, capability):
+        school_id = principal.acting_school_id
+        if school_id is None and user.group_id is not None:
+            raise PermissionDenied("Choose a branch to work in.", code="branch_required")
+        if school_id is None or not role_has(user.role, capability):
             raise PermissionDenied("You don't have permission to do that.")
-        scope_to_school(db, user.school_id)
-        return StaffContext(user=user, session_id=principal.session_id, meta=principal.meta, school_id=user.school_id)
+        scope_to_school(db, school_id)
+        return StaffContext(
+            user=user,
+            session_id=principal.session_id,
+            meta=principal.meta,
+            acting_school_id=school_id,
+            school_id=school_id,
+        )
 
     dependency.__name__ = f"require_{capability.value.replace('.', '_')}"
     return dependency

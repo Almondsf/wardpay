@@ -9,13 +9,15 @@ from app.core.errors import ERROR_RESPONSES
 from app.core.http import RequestMeta, request_meta
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.core.ratelimit import get_limiter
-from app.modules.schools.models import School
+from app.modules.schools.models import School, SchoolGroup
 
 from . import auth_service, staff_service
 from .deps import Principal, StaffContext, get_principal, require
 from .models import User
 from .permissions import ROLE_CAPABILITIES, Capability
 from .schemas import (
+    BranchIn,
+    GroupSummary,
     LoginIn,
     LoginResult,
     Me,
@@ -44,14 +46,22 @@ auth_router = APIRouter(prefix="/auth", tags=["auth"], responses=ERROR_RESPONSES
 staff_router = APIRouter(prefix="/staff", tags=["staff"], responses=ERROR_RESPONSES)
 
 
-def _me(db: Session, user: User) -> Me:
-    school = db.get(School, user.school_id) if user.school_id else None
+def _me(db: Session, user: User, branch_id: uuid.UUID | None = None) -> Me:
+    group, branches = None, []
+    if user.group_id is not None:
+        group = db.get(SchoolGroup, user.group_id)
+        branches = auth_service.group_branches(db, user.group_id)
+        school = next((b for b in branches if b.id == branch_id), None)
+    else:
+        school = db.get(School, user.school_id) if user.school_id else None
     return Me(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
         role=user.role,
         school=SchoolSummary.model_validate(school) if school else None,
+        group=GroupSummary.model_validate(group) if group else None,
+        branches=[SchoolSummary.model_validate(b) for b in branches],
         capabilities=sorted(c.value for c in ROLE_CAPABILITIES[user.role]),
         mfa_enabled=user.mfa_enabled,
         mfa_enrolment_required=auth_service.mfa_enrolment_required(user),
@@ -69,7 +79,9 @@ def _signed_in(db: Session, response: Response, issued: auth_service.IssuedSessi
         secure=settings.secure_cookies,
         samesite="strict",
     )
-    return SignedIn(access_token=issued.access_token, expires_in=issued.expires_in, user=_me(db, issued.user))
+    return SignedIn(
+        access_token=issued.access_token, expires_in=issued.expires_in, user=_me(db, issued.user, issued.branch_id)
+    )
 
 
 def _clear_cookie(response: Response) -> None:
@@ -134,7 +146,14 @@ def logout(response: Response, principal: Principal = Depends(get_principal), db
 
 @auth_router.get("/me", response_model=Me, summary="The signed-in user, their school and capabilities")
 def me(principal: Principal = Depends(get_principal), db: Session = Depends(get_db)) -> Me:
-    return _me(db, principal.user)
+    return _me(db, principal.user, principal.acting_school_id)
+
+
+@auth_router.post("/branch", response_model=Me, summary="Head-office staff: choose the branch this device works in")
+def switch_branch(body: BranchIn, principal: Principal = Depends(get_principal), db: Session = Depends(get_db)) -> Me:
+    get_limiter().hit("branch:user", "60/minute", str(principal.user.id))
+    branch = auth_service.switch_branch(db, principal.user, principal.session_id, body.school_id, principal.meta)
+    return _me(db, principal.user, branch)
 
 
 # --- Passwords -----------------------------------------------------------------------------------

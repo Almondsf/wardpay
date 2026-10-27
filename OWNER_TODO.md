@@ -82,11 +82,10 @@ anything that doesn't happen as described:
 
 ## Decisions
 
-- [ ] _(new)_ **School groups with several branches** (idea, 2026-10-22; design in
-      `docs/HANDOVER.md`, "Ideas waiting on the owner"). Before anything is built, answer:
-      do branches of a group usually share one bank account or each have their own; can one
-      bursar cover several branches, or only the proprietor; should a group get a group price
-      (e.g. one set-up fee). A real group to talk to would settle most of it.
+- [x] _(new)_ **School groups with several branches** (decided 2026-10-27: the group chooses shared or
+      separate bank accounts; owner + central bursar work across branches; each branch billed as now;
+      head office may see each branch's data). Step 1 is built: set a group up under Platform → School
+      groups. When a real group signs on, tell us whether its branches share one bank account.
 - [x] _(new)_ **How one family payment is shared between children** (decided and built 2026-10-23):
       each school's proprietor chooses the rule under Payment settings (default: old debts first,
       then clear as many children as possible). It's used by the family payment link: one tap pays

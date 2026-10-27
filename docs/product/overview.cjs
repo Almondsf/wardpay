@@ -179,6 +179,8 @@ const AREAS = [
         'Run the business from one screen'],
       ['Bill every school for the term in one click; schools pay by card from the console, or by transfer that you record; waive the set-up fee, give a discount or more time; PDF invoices emailed to proprietors',
         'Subscription income is collected without spreadsheets'],
+      ['School groups: an owner with several branches (and a central bursar) signs in once and switches branch from a menu; each branch keeps its own pupils, bills and bank account, and branch staff see only their branch',
+        'Chains of schools can use one sign-in without mixing their branches up'],
       ['Help a locked-out school: send a staff member their password link again or reset their two-factor sign-in',
         'A proprietor who lost their phone is back in within minutes'],
       ['Problems to fix: payments set aside, card payments in review, stuck tasks and failed messages across every school, with retry',

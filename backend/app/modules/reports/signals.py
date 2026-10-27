@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import Date, and_, cast, func, select, tuple_
+from sqlalchemy import Date, and_, cast, func, or_, select, tuple_
 from sqlalchemy.orm import Session, aliased
 
 from app.core.clock import lagos_today
@@ -37,6 +37,7 @@ from app.modules.payments.models import (
     Payment,
     PaymentKind,
 )
+from app.modules.schools.models import School
 from app.modules.students.models import Student
 
 MAX_DAYS = 180
@@ -188,8 +189,11 @@ def signals(session: Session, school_id: uuid.UUID, days: int = 30, today: date 
                 if isinstance(value, uuid.UUID):
                     who_ids.add(value)
     names: dict[uuid.UUID, str] = {}
-    if who_ids:  # staff aren't tenant rows: the school is named explicitly
-        users = select(User.id, User.full_name).where(User.id.in_(who_ids), User.school_id == school_id)
+    if who_ids:  # staff aren't tenant rows: the school (and its group's head office) is named explicitly
+        group = select(School.group_id).where(School.id == school_id).scalar_subquery()
+        users = select(User.id, User.full_name).where(
+            User.id.in_(who_ids), or_(User.school_id == school_id, User.group_id == group)
+        )
         names = {row.id: row.full_name for row in session.execute(users)}
 
     def name(user_id: uuid.UUID | None) -> str:

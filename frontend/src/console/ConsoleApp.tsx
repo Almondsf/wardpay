@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Network,
   Plug,
   Receipt,
   ReceiptText,
@@ -46,7 +47,9 @@ import { Expenses } from './expenses/Expenses';
 import { CashBook } from './payments/CashBook';
 import { Payments } from './payments/Payments';
 import { PaymentSettings } from './payments/PaymentSettings';
+import { BranchSwitcher, ChooseBranch } from './Branch';
 import { PlatformBilling } from './platform/Billing';
+import { PlatformGroupDetail, PlatformGroups } from './platform/Groups';
 import { PlatformLookup } from './platform/Lookup';
 import { PlatformOverview } from './platform/Overview';
 import { PlatformPlans } from './platform/Plans';
@@ -93,6 +96,7 @@ const SCHOOL_NAV: NavItem[] = [
 const PLATFORM_NAV: NavItem[] = [
   { to: '/console/platform', label: 'Overview', icon: LayoutDashboard, capability: 'platform.manage' },
   { to: '/console/platform/schools', label: 'Schools', icon: Building2, capability: 'platform.manage' },
+  { to: '/console/platform/groups', label: 'School groups', icon: Network, capability: 'platform.manage' },
   { to: '/console/platform/billing', label: 'Billing', icon: Receipt, capability: 'platform.manage' },
   { to: '/console/platform/plans', label: 'Plans', icon: Layers, capability: 'platform.manage' },
   { to: '/console/platform/problems', label: 'Problems', icon: TriangleAlert, capability: 'platform.manage' },
@@ -118,6 +122,7 @@ export function ConsoleApp() {
       <Route path="set-password" element={<SetPassword />} />
       <Route element={<RequireSignIn />}>
         <Route element={<Layout />}>
+          <Route element={<RequireBranch />}>
           <Route index element={<Home />} />
           <Route path="account" element={<Account />} />
           <Route path="get-started" element={<Guard capability="school.manage"><GetStarted /></Guard>} />
@@ -148,7 +153,10 @@ export function ConsoleApp() {
           <Route path="platform/problems" element={<Guard capability="platform.manage"><PlatformProblems /></Guard>} />
           <Route path="platform/lookup" element={<Guard capability="platform.manage"><PlatformLookup /></Guard>} />
           <Route path="platform/audit" element={<Guard capability="platform.manage"><AuditLog platform /></Guard>} />
+          <Route path="platform/groups" element={<Guard capability="platform.manage"><PlatformGroups /></Guard>} />
+          <Route path="platform/groups/:groupId" element={<Guard capability="platform.manage"><PlatformGroupDetail /></Guard>} />
           <Route path="*" element={<Navigate to="/console" replace />} />
+          </Route>
         </Route>
       </Route>
     </Routes>
@@ -164,6 +172,14 @@ function RequireSignIn() {
   if (user.mfa_enrolment_required && location.pathname !== '/console/account') {
     return <Navigate to="/console/account" replace />;
   }
+  return <Outlet />;
+}
+
+/** Head-office staff work in one branch at a time: until they have one, only the chooser and their account. */
+function RequireBranch() {
+  const { user } = useAuth();
+  const location = useLocation();
+  if (user?.group && !user.school && location.pathname !== '/console/account') return <ChooseBranch />;
   return <Outlet />;
 }
 
@@ -205,9 +221,10 @@ function Layout() {
           </span>
           <span className="side-brand-text">
             <strong>{BRAND}</strong>
-            {user.school && <span>{user.school.name}</span>}
+            {user.school && <span>{user.group ? user.group.name : user.school.name}</span>}
           </span>
         </Link>
+        <BranchSwitcher />
         <nav aria-label="Main" className="side-nav">
           {!user.mfa_enrolment_required &&
             groups.map((group) => (

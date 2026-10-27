@@ -215,6 +215,25 @@ hr {
   text-overflow: ellipsis;
 }
 
+/* Head-office staff of a school group: the branch they're working in */
+.branch-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 12px;
+}
+
+.branch-switcher .field-label {
+  color: var(--side-ink);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.branch-switcher select {
+  width: 100%;
+}
+
 .side-nav {
   display: flex;
   flex-direction: column;

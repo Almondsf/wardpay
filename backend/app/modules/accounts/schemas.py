@@ -32,12 +32,27 @@ class SchoolSummary(BaseModel):
     slug: str
 
 
+class GroupSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+
+class BranchIn(BaseModel):
+    school_id: uuid.UUID
+
+
 class Me(BaseModel):
     id: uuid.UUID
     email: str
     full_name: str
     role: Role
+    # The school they're working in (for head-office staff: the branch chosen; None until they choose one)
     school: SchoolSummary | None
+    # Head-office staff only: their school group and the branches they can switch between
+    group: GroupSummary | None = None
+    branches: list[SchoolSummary] = []
     capabilities: list[str]
     mfa_enabled: bool
     # True: the user must turn on two-factor sign-in before anything else works

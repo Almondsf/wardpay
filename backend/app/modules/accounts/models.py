@@ -23,8 +23,9 @@ STAFF_ROLES = (Role.PROPRIETOR, Role.BURSAR, Role.SCHOOL_ADMIN)
 
 class User(UUIDPrimaryKey, Timestamped, Base):
     """
-    A person who signs in with email + password: school staff, or a platform
-    admin (who belongs to no school). Parents sign in by phone and are
+    A person who signs in with email + password: school staff, head-office
+    staff of a school group (`group_id`, a proprietor or bursar working in any
+    of the group's branches), or a platform admin (who belongs to neither). Parents sign in by phone and are
     modelled as guardians (see the parent portal), not here.
 
     Not a TenantMixin model: sign-in has to find the user before the school is
@@ -35,7 +36,9 @@ class User(UUIDPrimaryKey, Timestamped, Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
-            "(role = 'platform_admin' AND school_id IS NULL) OR (role <> 'platform_admin' AND school_id IS NOT NULL)",
+            "(role = 'platform_admin' AND school_id IS NULL AND group_id IS NULL)"
+            " OR (role <> 'platform_admin' AND school_id IS NOT NULL AND group_id IS NULL)"
+            " OR (role IN ('proprietor', 'bursar') AND school_id IS NULL AND group_id IS NOT NULL)",
             name="role_matches_school",
         ),
         CheckConstraint("role <> 'parent'", name="staff_roles_only"),
@@ -43,6 +46,8 @@ class User(UUIDPrimaryKey, Timestamped, Base):
     )
 
     school_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("schools.id", ondelete="RESTRICT"), index=True)
+    # Head-office staff: the school group they work for, instead of one school
+    group_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("school_groups.id", ondelete="RESTRICT"), index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     full_name: Mapped[str] = mapped_column(String(150))
     role: Mapped[Role] = mapped_column(enum_type(Role, "user_role"))
@@ -96,6 +101,8 @@ class AuthSession(UUIDPrimaryKey, Base):
     revoke_reason: Mapped[str] = mapped_column(String(50), default="")
     ip_address: Mapped[str] = mapped_column(String(45), default="")
     user_agent: Mapped[str] = mapped_column(String(255), default="")
+    # Head-office staff: the branch this signed-in device is working in (checked against the group on every request)
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("schools.id", ondelete="SET NULL"))
 
     user: Mapped[User] = relationship(lazy="raise")
 

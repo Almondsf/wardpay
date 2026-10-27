@@ -124,6 +124,7 @@ the school is known. Staff queries therefore pin `school_id` explicitly in
 | Person | Signs in with | Belongs to |
 |---|---|---|
 | Proprietor, bursar, school admin | Email + password (+ authenticator code) | One school |
+| Head office of a school group (owner, central bursar) | Email + password + authenticator code | A group: works in one of its branches at a time |
 | Platform admin (us) | Email + password + authenticator code | No school |
 | Parent | Phone + one-time code (parent portal) | Their children's school |
 
@@ -196,6 +197,33 @@ school status in one query. It also scopes the database session to the user's
 school (or platform-wide for platform admins). `require(capability)` then
 checks MFA enrolment and the capability. Suspended schools are refused at both
 sign-in and on every request.
+
+**School groups** (owner, 2026-10-27; `platform/groups.py`). One owner with several
+branches or campuses. Each branch stays a full school and its own tenant: its own pupils,
+bills, receipt numbers, bank account and WardPay bill. A `SchoolGroup` sits above them
+(`School.group_id`). **Head-office staff** are `User` rows with `group_id` instead of
+`school_id` (the check constraint `role_matches_school` allows exactly one of the two, and
+only the proprietor or bursar role for a group: "Owner + central bursar"). They sign in once;
+the session (`AuthSession.branch_id`) starts in the first active branch by name, and
+`POST /auth/branch` moves it to another active branch of their group (anything else gets
+the same 400 `branch_invalid`, so other schools' ids can't be probed). `get_principal` joins
+the session's branch only while it is still in the user's group and active; the request is
+then scoped to that branch and the user acts there with their role's capabilities, exactly
+like that branch's proprietor or bursar. Without a usable branch (none chosen, taken out of
+the group, suspended) the session has **no tenant scope at all** and `require()` answers
+403 `branch_required`, so it fails closed. `GET /auth/me` adds `group` and `branches` (the
+group's active schools); the console shows a **Branch** menu under the logo and a chooser
+page when no branch is set, and clears every cached query on a switch. Branch staff are
+unchanged: they belong to one school and see only it. The platform admin sets groups up
+(Platform → School groups): create or rename a group, add schools as branches (a school is in
+at most one group), take one out (head office loses it at once, and devices working in it are
+moved off it), invite the owner or central bursar (email link; two-factor sign-in required),
+deactivate (signs them out), resend the link, reset two-factor. Switching branch is recorded
+in the platform's trail; what they then do is in each branch's own activity log under their
+name, and the unusual-activity page names them. A branch's WardPay bill is also emailed to
+its group's owner. Still to come (stages 2 and 3): combined head-office figures across
+branches, and parents with children in several branches (with a per-group shared bank
+account option).
 
 ## 7. Audit trail
 
@@ -1333,7 +1361,7 @@ production.
 | Area | Endpoints |
 |---|---|
 | Health | `GET /health`, `GET /health/ready` |
-| Sign-in | `POST /auth/login`, `/auth/login/mfa`, `/auth/refresh`, `/auth/logout`; `GET /auth/me` |
+| Sign-in | `POST /auth/login`, `/auth/login/mfa`, `/auth/refresh`, `/auth/logout`; `GET /auth/me`; `POST /auth/branch` (head office) |
 | Passwords | `POST /auth/password/change`, `/auth/password/forgot`, `/auth/password/set` |
 | Two-factor | `POST /auth/mfa/setup`, `/auth/mfa/confirm`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` |
 | Staff | `GET/POST /staff`; `PATCH /staff/{id}`; `POST /staff/{id}/deactivate`, `/reactivate`, `/reset-mfa`, `/resend-invite` |
@@ -1364,7 +1392,7 @@ production.
 | Parent sign-in | `POST /parent/auth/request-code`, `/parent/auth/verify`, `/parent/auth/choose-school`, `/parent/auth/refresh`, `/parent/auth/logout` |
 | Parent portal | `GET /parent/home`; `GET /parent/children/{id}`; `GET /parent/invoices/{id}`; `POST /parent/children/{id}/pay`; `GET /parent/receipts/{id}/pdf` |
 | Messages | `GET /messages`; `GET /message-templates`, `PUT /message-templates/{kind}`, `POST /message-templates/preview`; `GET/PUT /reminder-settings`; `PUT /guardians/{id}/reminders`; `POST /students/{id}/remind`; parents: `GET/PUT /parent/preferences` |
-| Platform (platform admins) | `GET /platform/overview`; `GET /platform/schools` (search, status), `GET /platform/schools/{id}`, `PUT /platform/schools/{id}/plan`, `POST /platform/schools`, `/suspend`, `/reactivate`; `GET/POST /platform/plans`, `PUT /platform/plans/{id}`; `POST /platform/billing/generate`; `GET /platform/billing/invoices`, `GET /platform/billing/invoices/{id}`, `/pdf`, `POST .../payments`, `.../void`; `GET /platform/lookup` |
+| Platform (platform admins) | `GET /platform/overview`; `GET /platform/schools` (search, status), `GET /platform/schools/{id}`, `PUT /platform/schools/{id}/plan`, `POST /platform/schools`; `GET/POST /platform/groups`, `GET/PUT /platform/groups/{id}`, `POST /platform/groups/{id}/branches`, `DELETE .../branches/{school_id}`, `POST /platform/groups/{id}/staff`, `.../staff/{user_id}/deactivate`, `/reactivate`, `/password-link`, `/reset-mfa`; `/suspend`, `/reactivate`; `GET/POST /platform/plans`, `PUT /platform/plans/{id}`; `POST /platform/billing/generate`; `GET /platform/billing/invoices`, `GET /platform/billing/invoices/{id}`, `/pdf`, `POST .../payments`, `.../void`; `GET /platform/lookup` |
 | Subscription and sign-up | `GET /subscription`, `GET /subscription/invoices/{id}/pdf`, `POST /subscription/invoices/{id}/checkout`, `POST /subscription/checkouts/verify`; `GET /school/onboarding`; `POST /public/signup` (public, rate limited) |
 | Privacy | `GET /guardians/{id}/export`; `POST /guardians/{id}/erase`, `POST /students/{id}/erase`; parents: `GET /parent/my-data` |
 | Public website | `GET /public/info` (name, contact, the default plan's prices) |

@@ -20,6 +20,7 @@ const ROLES = [
   ['Proprietor (school owner)', 'Everything in the school, including managing staff, the school’s bank account, approving write-offs, re-opening a closed term and seeing unusual activity.'],
   ['Bursar', 'Money: bills, fees, payments, approvals, cash book, spending, reports and messages. Not school set-up or staff.'],
   ['School admin', 'Everything the bursar does, plus school set-up (calendar, classes, pupils, school profile). Not staff or the bank account.'],
+  ['Head office (school groups)', 'For an owner with several branches: the owner works in every branch as its proprietor, a central bursar as its bursar, one branch at a time.'],
   ['Parent', 'Their own children only: balances, paying, receipts, their messages and their data.'],
   [`${BRAND} team (platform admin)`, 'Runs the service for every school: schools, subscription bills, prices, providers and support. Never sees children’s details.'],
 ];
@@ -722,6 +723,22 @@ const SECTIONS = [
         ],
       },
       {
+        name: 'School groups (several branches, one owner)',
+        who: 'Platform admin; then the owner and central bursar',
+        purpose:
+          'Lets an owner with several branches or campuses sign in once and work in any branch. Each branch stays its own school: its own pupils, bills, receipt numbers, bank account and ' +
+          BRAND +
+          ' bill. Branch staff still see only their own branch.',
+        steps: [
+          'Platform console: go to School groups, type the group’s name and press Add group.',
+          'On the group’s page, type a school’s name under Add a school and press Add as a branch. Do this for each branch.',
+          'Under Head office, fill in the owner’s name and email, choose Owner or Central bursar and press Send invite. They choose a password from the email and turn on two-factor sign-in.',
+          'Head office: after signing in, pick the branch from the Branch menu under the logo. Everything on screen is then that branch; pick another branch to switch.',
+          'To take a branch out press Take out; to stop someone press Deactivate. Either takes effect at once.',
+        ],
+        notes: ['Combined figures for all branches, and parents with children in several branches, are coming next.'],
+      },
+      {
         name: 'Subscription billing and plans',
         who: 'Platform admin',
         purpose: 'Bill every school for the term, record payments, and set prices.',
@@ -746,6 +763,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['27 Oct 2026', 'School groups: an owner with several branches signs in once and switches branch from a menu; set up by the WardPay team.'],
   ['26 Oct 2026', 'Subscription: each WardPay bill line by line, the instalment plan fee, and plans waiting for the next bill.'],
   ['26 Oct 2026', 'Generating a big school’s bills now runs in the background and shows the result when done.'],
   ['25 Oct 2026', 'WardPay’s standard plan charge (₦300 a payment + ₦200), which schools can raise but not lower.'],

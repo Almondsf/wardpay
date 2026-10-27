@@ -22,10 +22,22 @@ from app.modules.notifications import providers as sms_providers
 from app.modules.payments import providers
 from app.modules.payments.gateways import GatewayCode
 from app.modules.payments.models import IntentStatus
-from app.modules.schools.models import School, SchoolOrigin, SchoolStatus
+from app.modules.schools.models import School, SchoolGroup, SchoolOrigin, SchoolStatus
 from app.modules.schools.schemas import SchoolOut
 
-from . import billing, card_payments, console, onboarding, pdf, plans, problems, signup, staff_support, trends
+from . import (
+    billing,
+    card_payments,
+    console,
+    groups,
+    onboarding,
+    pdf,
+    plans,
+    problems,
+    signup,
+    staff_support,
+    trends,
+)
 from .models import SubscriptionCheckout, SubscriptionLineKind
 
 router = APIRouter(prefix="/platform", tags=["platform"], responses=ERROR_RESPONSES)
@@ -84,6 +96,9 @@ class SchoolStaffOut(BaseModel):
 class SchoolDetailOut(BaseModel):
     school: PlatformSchoolOut
     plan_id: uuid.UUID | None
+    # The school group it's a branch of, if any
+    group_id: uuid.UUID | None = None
+    group_name: str | None = None
     staff: list[SchoolStaffOut]
     students_active: int
     invoices_this_term: int
@@ -389,9 +404,12 @@ def list_schools(
 @router.get("/schools/{school_id}", response_model=SchoolDetailOut, summary="One school, for support")
 def get_school(school_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)) -> SchoolDetailOut:
     d = console.school_detail(db, school_id)
+    group = db.get(SchoolGroup, d.row.school.group_id) if d.row.school.group_id else None
     return SchoolDetailOut(
         school=_school_out(d.row),
         plan_id=d.plan_id,
+        group_id=group.id if group else None,
+        group_name=group.name if group else None,
         staff=[SchoolStaffOut.model_validate(s) for s in d.staff],
         students_active=d.students_active,
         invoices_this_term=d.invoices_this_term,
@@ -924,3 +942,168 @@ def get_trends(
     months: int = Query(default=12, ge=1, le=trends.MAX_MONTHS), admin: Principal = ADMIN, db: Session = Depends(get_db)
 ) -> list[TrendMonthOut]:
     return [TrendMonthOut.model_validate(m) for m in trends.trends(db, months)]
+
+
+# --- School groups -----------------------------------------------------------------------------------
+
+
+class GroupNameIn(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)]
+
+
+class GroupOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    branches: int
+    staff: int
+
+
+class GroupBranchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    status: SchoolStatus
+
+
+class GroupDetailOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    branches: list[GroupBranchOut]
+    staff: list[SchoolStaffOut]
+
+
+class GroupBranchIn(BaseModel):
+    school_id: uuid.UUID
+
+
+class GroupStaffIn(BaseModel):
+    email: EmailStr
+    full_name: Name
+    role: Literal[Role.PROPRIETOR, Role.BURSAR] = Field(description="proprietor = the owner; bursar = central bursar")
+
+
+def _group_detail(db: Session, group_id: uuid.UUID) -> GroupDetailOut:
+    d = groups.detail(db, group_id)
+    return GroupDetailOut(
+        id=d.group.id,
+        name=d.group.name,
+        branches=[GroupBranchOut.model_validate(b) for b in d.branches],
+        staff=[
+            SchoolStaffOut(
+                id=u.id,
+                full_name=u.full_name,
+                email=u.email,
+                role=u.role,
+                is_active=u.is_active,
+                mfa_enabled=u.mfa_enabled,
+                invited=u.password_hash is None,
+                last_login_at=u.last_login_at,
+            )
+            for u in d.staff
+        ],
+    )
+
+
+@router.get("/groups", response_model=list[GroupOut], summary="School groups (one owner, several branches)")
+def list_groups(admin: Principal = ADMIN, db: Session = Depends(get_db)) -> list[GroupOut]:
+    return [GroupOut(id=r.group.id, name=r.group.name, branches=r.branches, staff=r.staff) for r in groups.groups(db)]
+
+
+@router.post("/groups", response_model=GroupDetailOut, status_code=status.HTTP_201_CREATED, summary="Add a group")
+def create_group(body: GroupNameIn, admin: Principal = ADMIN, db: Session = Depends(get_db)) -> GroupDetailOut:
+    return _group_detail(db, groups.save(db, admin, body.name).id)
+
+
+@router.get("/groups/{group_id}", response_model=GroupDetailOut, summary="A group's branches and head-office staff")
+def get_group(group_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)) -> GroupDetailOut:
+    return _group_detail(db, group_id)
+
+
+@router.put("/groups/{group_id}", response_model=GroupDetailOut, summary="Rename a group")
+def rename_group(
+    group_id: uuid.UUID, body: GroupNameIn, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.save(db, admin, body.name, group_id)
+    return _group_detail(db, group_id)
+
+
+@router.post("/groups/{group_id}/branches", response_model=GroupDetailOut, summary="Make a school a branch")
+def add_group_branch(
+    group_id: uuid.UUID, body: GroupBranchIn, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.add_branch(db, admin, group_id, body.school_id)
+    return _group_detail(db, group_id)
+
+
+@router.delete(
+    "/groups/{group_id}/branches/{school_id}",
+    response_model=GroupDetailOut,
+    summary="Take a school out of the group (head office loses access to it at once)",
+)
+def remove_group_branch(
+    group_id: uuid.UUID, school_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.remove_branch(db, admin, group_id, school_id)
+    return _group_detail(db, group_id)
+
+
+@router.post(
+    "/groups/{group_id}/staff",
+    response_model=GroupDetailOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Invite head-office staff (they work in every branch)",
+)
+def invite_group_staff(
+    group_id: uuid.UUID, body: GroupStaffIn, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.invite(db, admin, group_id, email=str(body.email), full_name=body.full_name, role=body.role)
+    return _group_detail(db, group_id)
+
+
+@router.post(
+    "/groups/{group_id}/staff/{user_id}/deactivate",
+    response_model=GroupDetailOut,
+    summary="Deactivate head-office staff (signs them out everywhere)",
+)
+def deactivate_group_staff(
+    group_id: uuid.UUID, user_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.set_active(db, admin, group_id, user_id, False)
+    return _group_detail(db, group_id)
+
+
+@router.post(
+    "/groups/{group_id}/staff/{user_id}/reactivate",
+    response_model=GroupDetailOut,
+    summary="Reactivate head-office staff",
+)
+def reactivate_group_staff(
+    group_id: uuid.UUID, user_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> GroupDetailOut:
+    groups.set_active(db, admin, group_id, user_id, True)
+    return _group_detail(db, group_id)
+
+
+@router.post(
+    "/groups/{group_id}/staff/{user_id}/password-link",
+    response_model=LinkSentOut,
+    summary="Email head-office staff their invite again, or a password-reset link",
+)
+def send_group_staff_password_link(
+    group_id: uuid.UUID, user_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> LinkSentOut:
+    get_limiter().hit("platform-staff-link:user", "30/hour", str(admin.user.id))
+    return LinkSentOut(sent=staff_support.send_link(db, admin, None, user_id, group_id=group_id))
+
+
+@router.post(
+    "/groups/{group_id}/staff/{user_id}/reset-mfa",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Turn off head-office staff's two-factor sign-in (lost phone)",
+)
+def reset_group_staff_mfa(
+    group_id: uuid.UUID, user_id: uuid.UUID, admin: Principal = ADMIN, db: Session = Depends(get_db)
+) -> None:
+    staff_support.reset_two_factor(db, admin, None, user_id, group_id=group_id)
