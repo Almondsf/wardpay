@@ -183,6 +183,8 @@ const AREAS = [
         'Chains of schools can use one sign-in without mixing their branches up'],
       ['All branches: the owner sees every branch’s billed, collected, owed and received money side by side with the group’s totals, and downloads it as Excel',
         'One screen for the whole group’s money'],
+      ['Parents with children at several branches sign in once, see what is owed at each branch and open any of them; each branch is paid into its own account (or a shared one)',
+        'Families with children on two campuses aren’t confused'],
       ['Help a locked-out school: send a staff member their password link again or reset their two-factor sign-in',
         'A proprietor who lost their phone is back in within minutes'],
       ['Problems to fix: payments set aside, card payments in review, stuck tasks and failed messages across every school, with retry',
@@ -206,6 +208,7 @@ const COMING = [
 
 // Newest first. Add a line whenever something ships.
 const CHANGES = [
+  ['27 Oct 2026', 'Parents with children at several branches sign in once and see what is owed at each branch'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once, switches branch, and sees every branch’s money side by side'],
   ['25 Oct 2026', 'Schools set their own instalment plans (“Pay in 3”), and parents choose them on their phone'],
   ['24 Oct 2026', 'Unusual activity for the proprietor: reversals, late cash, short counts, cut bills, write-offs and more, with who recorded them'],

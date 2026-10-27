@@ -83,6 +83,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Move everyone into the next term, or promote them a class at the start of a new session (final-year students graduate), with a preview first.
 
 ## Parent
+- ✅ With children at several branches of one school group, sign in once, see what's owed at each branch on my home page, and open another branch without a new code; each branch is paid on its own page.
 - ✅ Spread a child's fees myself with one of the school's instalment plans ("Pay in 3"), seeing the dates, amounts and any plan charge before I choose, from my payment link or the portal.
 - ✅ Pay for all my children with one tap from the link in my WhatsApp or text message, straight to the payment page, without working out amounts.
 - ✅ Pay a smaller amount for all my children and see how the school will share it before I pay.

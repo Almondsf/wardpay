@@ -6335,6 +6335,45 @@
         "title": "PaidFrom",
         "type": "string"
       },
+      "ParentBranchOut": {
+        "properties": {
+          "children": {
+            "description": "First names of the children at that branch",
+            "items": {
+              "type": "string"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "current": {
+            "description": "The branch this device is looking at",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "guardian_id": {
+            "format": "uuid",
+            "title": "Guardian Id",
+            "type": "string"
+          },
+          "owed_kobo": {
+            "title": "Owed Kobo",
+            "type": "integer"
+          },
+          "school_name": {
+            "title": "School Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "guardian_id",
+          "school_name",
+          "children",
+          "owed_kobo",
+          "current"
+        ],
+        "title": "ParentBranchOut",
+        "type": "object"
+      },
       "ParentChooseSchool": {
         "properties": {
           "schools": {
@@ -10689,6 +10728,21 @@
           "detail"
         ],
         "title": "SupportLookupHitOut",
+        "type": "object"
+      },
+      "SwitchBranchIn": {
+        "properties": {
+          "guardian_id": {
+            "description": "One of this parent's records from GET /parent/branches",
+            "format": "uuid",
+            "title": "Guardian Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "guardian_id"
+        ],
+        "title": "SwitchBranchIn",
         "type": "object"
       },
       "TaskProblemOut": {
@@ -21458,6 +21512,112 @@
         ]
       }
     },
+    "/api/v1/parent/auth/switch-branch": {
+      "post": {
+        "operationId": "parent-auth_switch_branch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchBranchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParentSignedIn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Children in several branches of a school group: look at another branch (no new code)",
+        "tags": [
+          "parent-auth"
+        ]
+      }
+    },
     "/api/v1/parent/auth/verify": {
       "post": {
         "operationId": "parent-auth_verify",
@@ -21571,6 +21731,106 @@
         "summary": "Sign in with the texted code",
         "tags": [
           "parent-auth"
+        ]
+      }
+    },
+    "/api/v1/parent/branches": {
+      "get": {
+        "operationId": "parent_list_branches",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ParentBranchOut"
+                  },
+                  "title": "Response Parent List Branches",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Children in several branches of a school group: what's owed at each (empty for other schools)",
+        "tags": [
+          "parent"
         ]
       }
     },

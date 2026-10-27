@@ -121,7 +121,47 @@ function Home() {
           <p className="hint">One payment: bank transfer, card or USSD. You choose how much goes to each child.</p>
         </section>
       )}
+      <OtherBranches />
     </>
+  );
+}
+
+/** Children at other branches of the same school group: what's owed there, and a way to open that branch. */
+function OtherBranches() {
+  const { acceptToken } = useParentAuth();
+  const queryClient = useQueryClient();
+  const branches = useQuery({ queryKey: ['parent-branches'], queryFn: async () => unwrap(await api.GET('/api/v1/parent/branches')) });
+  const open = useMutation({
+    mutationFn: async (guardianId: string) =>
+      unwrap(await api.POST('/api/v1/parent/auth/switch-branch', { body: { guardian_id: guardianId } })),
+    onSuccess: (signed) => {
+      acceptToken(signed.access_token);
+      void queryClient.resetQueries(); // drop the last branch's data and reload, so it never shows under this one
+      window.scrollTo(0, 0);
+    },
+  });
+  const others = (branches.data ?? []).filter((b) => !b.current);
+  if (others.length === 0) return null;
+  return (
+    <section className="card" aria-label="Your children at other branches">
+      <h2 className="section-title">At other branches</h2>
+      <p className="hint">Each branch is paid separately. Open a branch to see and pay for those children.</p>
+      <ul className="plain">
+        {others.map((b) => (
+          <li key={b.guardian_id} className="list-item row between wrap">
+            <span>
+              <strong>{b.school_name}</strong>
+              <span className="small muted"> · {b.children.join(', ') || 'no current pupils'}</span>
+              <div className="small">{b.owed_kobo > 0 ? `To pay: ${formatKobo(b.owed_kobo)}` : 'All paid'}</div>
+            </span>
+            <button className="secondary" onClick={() => open.mutate(b.guardian_id)} disabled={open.isPending}>
+              Open {b.school_name}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ErrorAlert error={open.error} />
+    </section>
   );
 }
 

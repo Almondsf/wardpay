@@ -89,6 +89,7 @@ class SchoolChoice:
     school_id: uuid.UUID
     school_name: str
     guardian_name: str
+    group_id: uuid.UUID | None = None  # the school group it's a branch of
     children: tuple[str, ...] = ()  # first names, so similar school names can be told apart
 
 
@@ -109,7 +110,7 @@ class ChooseSchool:
 
 def _choices(session: Session, phone_index: str) -> list[SchoolChoice]:
     rows = session.execute(
-        select(Guardian.id, School.id, School.name, Guardian.full_name)
+        select(Guardian.id, School.id, School.name, Guardian.full_name, School.group_id)
         .join(School, School.id == Guardian.school_id)
         .where(Guardian.phone_index == phone_index, School.status == SchoolStatus.ACTIVE)
         .order_by(School.name)
@@ -151,7 +152,8 @@ def verify_code(session: Session, raw_phone: str, code: str, meta: RequestMeta) 
     if not choices:
         session.commit()
         raise NotAuthenticated("This number isn't registered with a school.", code="otp_invalid")
-    if len(choices) == 1:
+    # One school, or all branches of one group (switched between from the home page): no choice to make
+    if len(choices) == 1 or (choices[0].group_id is not None and len({c.group_id for c in choices}) == 1):
         issued = _issue(session, choices[0], meta)
         session.commit()
         return issued
@@ -173,7 +175,7 @@ def choose_school(session: Session, ticket: str, guardian_id: uuid.UUID, meta: R
     return issued
 
 
-def _access(guardian_id: uuid.UUID, school_id: uuid.UUID, session_id: uuid.UUID) -> tuple[str, int]:
+def access_token(guardian_id: uuid.UUID, school_id: uuid.UUID, session_id: uuid.UUID) -> tuple[str, int]:
     minutes = get_settings().access_token_minutes
     token = encode_token("parent", guardian_id, timedelta(minutes=minutes), sid=str(session_id), sch=str(school_id))
     return token, minutes * 60
@@ -199,7 +201,7 @@ def _issue(session: Session, choice: SchoolChoice, meta: RequestMeta) -> IssuedP
         meta=meta,
         changes={"guardian": choice.guardian_id},
     )
-    access, expires_in = _access(choice.guardian_id, choice.school_id, parent_session.id)
+    access, expires_in = access_token(choice.guardian_id, choice.school_id, parent_session.id)
     return IssuedParentSession(access, expires_in, refresh, choice.guardian_id, choice.school_id)
 
 
@@ -229,7 +231,7 @@ def refresh(session: Session, token: str, meta: RequestMeta) -> IssuedParentSess
     parent_session.previous_refresh_hash, parent_session.refresh_hash = digest, hash_token(new_token)
     parent_session.last_used_at, parent_session.ip_address = datetime.now(UTC), meta.ip
     session.commit()
-    access, expires_in = _access(parent_session.guardian_id, parent_session.school_id, parent_session.id)
+    access, expires_in = access_token(parent_session.guardian_id, parent_session.school_id, parent_session.id)
     return IssuedParentSession(access, expires_in, new_token, parent_session.guardian_id, parent_session.school_id)
 
 

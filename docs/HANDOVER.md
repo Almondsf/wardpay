@@ -42,6 +42,7 @@ The roadmap (PLAN.md chunks 0 to 10) is finished. Since then, at the owner's req
 | 22 Oct | **Parent portal redesign**: one page (total at the top, each child with owed, Pay online, account number and fees; pay-all at the bottom), history and settings a tap away; demo code-fill button on laptops | `parent/ParentApp.tsx`, `parent/ParentLogin.tsx` |
 | 22 Oct | **Fees in reminders**: `{fees}` in new-bill notices and reminders (fees with money left, biggest first, max four then "N more"); WhatsApp templates get it as their last parameter | `notifications/service.py` (`fees_phrase`), `templates.py` |
 | 22 Oct | **SMS alphabet**: every text is converted to GSM-7 (NGN for ₦, plain quotes/dashes, emoji dropped) so it isn't billed as Unicode (7 pages became 3); wording preview shows SMS pages | `notifications/sms.py` (`to_gsm`, `sms_pages`) |
+| 27 Oct | **School groups, step 3: parents across branches**: one sign-in when all a parent's schools are branches of one group, an "At other branches" card with what's owed, switch without a new code; paying stays per branch (works whether branches share a bank account or not) | `parents/branches.py`, `parent/ParentApp.tsx` |
 | 27 Oct | **School groups, step 2: All branches** for head office (every branch's money side by side, the group's totals, 30-day takings, Excel); figures only, one query per figure whatever the number of branches | `reports/group.py`, `accounts/deps.py` (`require_head_office`), `console/GroupFigures.tsx` |
 | 27 Oct | **School groups, step 1**: groups of branches set up by the platform admin; head-office owner and central bursar sign in once and switch branch (as that branch's proprietor or bursar); branch staff unchanged. Next: combined head-office figures, then parents across branches | `platform/groups.py`, `accounts/deps.py`, `console/Branch.tsx` |
 | 27 Oct | **Licence fee removed completely** (owner): the `licence` bill-line kind is gone from the code and the database type, any old licence lines (test bills only) deleted by migration `5c1d2e7f9a01` | `platform/models.py` |
@@ -150,9 +151,11 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
 
 **Ideas waiting on the owner (2026-10-22), not started:**
 
-- **School groups**: decided, steps 1 and 2 built 2026-10-27 (see Owner decisions). Still to build: (3) parents
-  with children in several branches seeing them together, and the per-group shared bank account option (one
-  payment covering two branches only works with one shared Paystack subaccount).
+- **School groups**: decided and all three steps built 2026-10-27 (see Owner decisions). Owner, 2026-10-27:
+  branches "can either share or give different account numbers"; paying per branch covers both. Not built: one
+  combined payment across branches for groups sharing an account (it would need a rule for splitting one
+  transfer between branches' books, a money rule to agree first; one payment covering two branches also only
+  works with one shared Paystack subaccount).
 - **Giving a school all its records** (for leaving WardPay or a wind-down; on hold, owner 2026-10-24:
   "leave it till later"). Discussed: the owner first wanted a platform button sending each school (or all)
   one password-protected file by email. Recommended instead, and agreed as the shape when it's built: a

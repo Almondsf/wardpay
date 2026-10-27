@@ -32,8 +32,8 @@ from app.modules.receipts.pdf import render_receipt
 from app.modules.receipts.service import is_reversed, receipts_for_payments
 from app.modules.reports.router import FeeLineOut, breakdown_out
 
-from . import auth_service, portal
-from .deps import ParentContext, get_parent
+from . import auth_service, branches, portal
+from .deps import ParentContext, get_parent, get_parent_across_branches
 
 REFRESH_COOKIE = "sp_parent_refresh"
 REFRESH_PATH = "/api/v1/parent/auth"
@@ -247,7 +247,55 @@ def logout(response: Response, ctx: ParentContext = Depends(get_parent), db: Ses
     response.delete_cookie(REFRESH_COOKIE, path=REFRESH_PATH)
 
 
+class SwitchBranchIn(BaseModel):
+    guardian_id: uuid.UUID = Field(description="One of this parent's records from GET /parent/branches")
+
+
+@auth_router.post(
+    "/switch-branch",
+    response_model=ParentSignedIn,
+    summary="Children in several branches of a school group: look at another branch (no new code)",
+)
+def switch_branch(
+    body: SwitchBranchIn, ctx: ParentContext = Depends(get_parent_across_branches), db: Session = Depends(get_db)
+) -> ParentSignedIn:
+    get_limiter().hit("parent-branch:session", "60/minute", str(ctx.session_id))
+    issued = branches.switch(db, ctx, body.guardian_id)
+    return ParentSignedIn(access_token=issued.access_token, expires_in=issued.expires_in)
+
+
 # --- Portal ----------------------------------------------------------------------------------------
+
+
+class ParentBranchOut(BaseModel):
+    guardian_id: uuid.UUID
+    school_name: str
+    children: list[str] = Field(description="First names of the children at that branch")
+    owed_kobo: int
+    current: bool = Field(description="The branch this device is looking at")
+
+
+@router.get(
+    "/branches",
+    response_model=list[ParentBranchOut],
+    summary="Children in several branches of a school group: what's owed at each (empty for other schools)",
+)
+def list_branches(
+    ctx: ParentContext = Depends(get_parent_across_branches), db: Session = Depends(get_db)
+) -> list[ParentBranchOut]:
+    rows = branches.branches(db, ctx)
+    if len(rows) < 2:
+        return []
+    return [
+        ParentBranchOut(
+            guardian_id=b.guardian_id,
+            school_name=b.school_name,
+            children=list(b.children),
+            owed_kobo=b.owed_kobo,
+            current=b.current,
+        )
+        for b in rows
+    ]
 
 
 def _child_out(child: portal.ChildOverview) -> ChildOut:

@@ -94,6 +94,45 @@ describe('parent portal', () => {
     expect(homeCall.headers.get('Authorization')).toBe('Bearer parent-token');
   });
 
+  it('shows children at other branches of the group and opens one', async () => {
+    let token = 'parent-token';
+    const calls = mockApi({
+      'POST /api/v1/parent/auth/refresh': () => json(signedIn),
+      'GET /api/v1/parent/home': () =>
+        json(
+          token === 'parent-token'
+            ? home
+            : { guardian_name: 'Mrs Adeyemi', school_name: 'Lekki Campus', children: [child({ id: 'c9', first_name: 'Kemi', full_name: 'Kemi Adeyemi' })] },
+        ),
+      'GET /api/v1/parent/preferences': () => json({ reminders: true }),
+      'GET /api/v1/parent/branches': () =>
+        json(
+          token === 'parent-token'
+            ? [
+                { guardian_id: 'g1', school_name: 'Demo Model College', children: ['Bisi', 'Tolu'], owed_kobo: 15_500_000, current: true },
+                { guardian_id: 'g2', school_name: 'Lekki Campus', children: ['Kemi'], owed_kobo: 9_000_000, current: false },
+              ]
+            : [],
+        ),
+      'POST /api/v1/parent/auth/switch-branch': () => {
+        token = 'lekki-token';
+        return json({ ...signedIn, access_token: 'lekki-token' });
+      },
+    });
+    renderAt('/parent');
+    const others = await screen.findByRole('region', { name: 'Your children at other branches' });
+    expect(others).toHaveTextContent('Lekki Campus');
+    expect(others).toHaveTextContent('Kemi');
+    expect(others).toHaveTextContent('To pay: ₦90,000');
+    expect(within(others).queryByText('Demo Model College')).not.toBeInTheDocument();
+    await userEvent.click(within(others).getByRole('button', { name: 'Open Lekki Campus' }));
+    expect(await screen.findByText('Lekki Campus')).toBeInTheDocument();
+    const switched = calls.find((c) => c.url.endsWith('/switch-branch'))!;
+    expect(await switched.json()).toEqual({ guardian_id: 'g2' });
+    const lastHome = calls.filter((c) => c.url.endsWith('/parent/home')).pop()!;
+    expect(lastHome.headers.get('Authorization')).toBe('Bearer lekki-token');
+  });
+
   it('lets a family at two schools choose one', async () => {
     const calls = mockApi({
       'POST /api/v1/parent/auth/refresh': () => error(401, 'session_expired'),

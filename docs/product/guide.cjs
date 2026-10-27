@@ -677,7 +677,7 @@ const SECTIONS = [
         purpose: 'All children at the school in one place: bills, payments, receipts, instalment plans and messages.',
         steps: [
           'Go to the parent portal, enter your phone number and press Text me a code; type the code and press Sign in.',
-          'If you have children at more than one school, choose the school.',
+          'If you have children at more than one school, choose the school. If they are all branches of one group there is nothing to choose: other branches appear under At other branches, with what is owed there; press Open … to see and pay for those children.',
           'Each child shows what is owed, any credit and their account number. Press Pay now (or Pay for all your children). Receipts are under Payments and receipts.',
         ],
       },
@@ -764,6 +764,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['27 Oct 2026', 'Parents with children at several branches of a group sign in once and open each branch from their home page.'],
   ['27 Oct 2026', 'All branches: head office sees every branch’s money side by side, with totals and an Excel download.'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once and switches branch from a menu; set up by the WardPay team.'],
   ['26 Oct 2026', 'Subscription: each WardPay bill line by line, the instalment plan fee, and plans waiting for the next bill.'],

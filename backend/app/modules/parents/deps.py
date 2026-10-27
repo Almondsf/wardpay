@@ -2,7 +2,8 @@
 The signed-in parent, and the scoping of their requests.
 
 `get_parent` checks the parent access token against a live session, then
-scopes the database session to the guardian's school. Within that school,
+scopes the database session to the guardian's school (a parent with children
+in several branches of a school group switches between them: `branches.py`). Within that school,
 `portal.require_child` limits everything to the guardian's own children.
 """
 
@@ -40,9 +41,8 @@ class ParentContext:
         return Actor(user_id=None, label=f"guardian:{self.guardian_id}")
 
 
-def get_parent(
-    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(_bearer), db: Session = Depends(get_db)
-) -> ParentContext:
+def _authenticate(request: Request, credentials: HTTPAuthorizationCredentials | None, db: Session) -> ParentContext:
+    """The signed-in parent and their school. Leaves the session's tenant scope to the caller."""
     claims = decode_token(credentials.credentials, "parent") if credentials else None
     if claims is None or "sid" not in claims:
         raise NotAuthenticated("Please sign in.", code="not_authenticated")
@@ -58,10 +58,25 @@ def get_parent(
         raise NotAuthenticated("Your session has ended. Please sign in again.", code="session_expired")
     if school_status != SchoolStatus.ACTIVE:
         raise PermissionDenied("This school's account is suspended.", code="school_suspended")
-    scope_to_school(db, parent_session.school_id)
     return ParentContext(
         guardian_id=parent_session.guardian_id,
         school_id=parent_session.school_id,
         session_id=parent_session.id,
         meta=request_meta(request),
     )
+
+
+def get_parent(
+    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(_bearer), db: Session = Depends(get_db)
+) -> ParentContext:
+    ctx = _authenticate(request, credentials, db)
+    scope_to_school(db, ctx.school_id)
+    return ctx
+
+
+def get_parent_across_branches(
+    request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(_bearer), db: Session = Depends(get_db)
+) -> ParentContext:
+    """For `branches.py` only: the session is left unscoped and that module reads platform-wide, naming this
+    parent's own records at their school group's branches explicitly."""
+    return _authenticate(request, credentials, db)

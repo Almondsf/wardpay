@@ -12,7 +12,7 @@ system meets that responsibility. It is updated as features are added.
 | Student | Admission number, names, class per term, status | Billing and receipts | School-scoped; staff access by role |
 | Student (optional) | Gender, date of birth | Schools' own records | Optional; leave blank if not needed |
 | Guardian | Name, relationship to the child | Addressing notices | School-scoped |
-| Guardian | Phone, email | Receipts, reminders, parent sign-in | **Encrypted at rest**; looked up by a keyed blind index |
+| Guardian | Phone, email | Receipts, reminders, parent sign-in; linking a parent's own records across branches of one school group | **Encrypted at rest**; looked up by a keyed blind index |
 | Guardian | When and how consent was given | NDPA accountability | Recorded on every guardian |
 
 No BVNs, NINs, photos, addresses, religion or health data are collected.

@@ -43,6 +43,11 @@ It is updated with every change that affects security.
 - Parents only ever see children linked to them: every portal lookup goes
   through the guardian's links (tested for a non-linked child in the same school
   and for children at other schools).
+- A parent with children at several branches of one school group can move their
+  session between their own guardian records there (same phone, same group, active
+  branch) without a new code. Anything else, including their own record at a school
+  outside the group, gets one 400 answer; the previous access token stops working;
+  each switch is audited in the branch. Tests: `tests/test_parent_branches.py`.
 
 ## Tenant isolation
 - Every school-owned table has a non-null `school_id`. Scoping is applied

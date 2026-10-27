@@ -236,8 +236,7 @@ those branches (`school_id IN ...`). It doesn't need a branch to be chosen. Each
 query grouped by branch (fixed count however many branches; tested), and each branch's row
 equals that branch's own dashboard (tested). The download is recorded in the platform's trail.
 Console: **All branches** in the menu (head office only), with "Work in this branch" per row.
-Still to come (step 3): parents with children in several branches, with a per-group shared
-bank account option.
+Parents with children at several branches: step 3, in section 12.
 
 ## 7. Audit trail
 
@@ -865,7 +864,25 @@ index of their phone.
    attempts are rate limited per phone and per IP.
 3. A parent with children at more than one school gets a short-lived ticket and
    chooses (`POST /parent/auth/choose-school`). Each option lists the children's
-   first names, so similar school names can be told apart.
+   first names, so similar school names can be told apart. If every one of those
+   schools is a branch of the same school group, there's no choice to make: they're
+   signed in to the first branch by name and switch from the home page (below).
+
+**Children at several branches of a school group** (`branches.py`, step 3 of school
+groups, 2026-10-27). A parent has one guardian record per branch (same phone). `GET
+/parent/branches` lists this parent's records at every active branch of the group
+(same blind index, same `group_id`) with the children's first names and what's owed
+there (the ledger's totals and payments for just those bills; three queries whatever the
+number of branches); it's empty unless there are at least two. `POST
+/parent/auth/switch-branch {guardian_id}` moves this device's session to another of those
+records: the refresh cookie carries on, a new access token is issued, the old one stops
+working (it names the other record), and the switch is in the new branch's activity log.
+Any other id (another parent, this parent at a school outside the group, a suspended
+branch) gets the same 400 `branch_invalid`. These two use `get_parent_across_branches`
+(no tenant scope; the module reads platform-wide and names the records explicitly).
+Paying stays per branch, so money always reaches that branch's own account, whether the
+group's branches share one bank account or each have their own. The portal shows an "At
+other branches" card under the children, with **Open …** per branch.
 
 Each **portal session** (`parent_sessions`) is bound to one guardian record,
 and so to one school. Parent access tokens have their own type (`parent`), so
@@ -1377,6 +1394,7 @@ production.
 | Health | `GET /health`, `GET /health/ready` |
 | Sign-in | `POST /auth/login`, `/auth/login/mfa`, `/auth/refresh`, `/auth/logout`; `GET /auth/me`; `POST /auth/branch` (head office) |
 | Head office | `GET /reports/group`, `GET /reports/group/export` (every branch's figures; group staff only) |
+| Parents at several branches | `GET /parent/branches`, `POST /parent/auth/switch-branch` |
 | Passwords | `POST /auth/password/change`, `/auth/password/forgot`, `/auth/password/set` |
 | Two-factor | `POST /auth/mfa/setup`, `/auth/mfa/confirm`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` |
 | Staff | `GET/POST /staff`; `PATCH /staff/{id}`; `POST /staff/{id}/deactivate`, `/reactivate`, `/reset-mfa`, `/resend-invite` |
