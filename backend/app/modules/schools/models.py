@@ -20,6 +20,13 @@ class SchoolOrigin(enum.StrEnum):
     SIGNUP = "signup"  # the school signed itself up
 
 
+class ChargePayer(enum.StrEnum):
+    """Who pays the provider's charge on an online checkout (see payments/checkout_charges.py)."""
+
+    SCHOOL = "school"
+    PARENT = "parent"
+
+
 class FamilySplitRule(enum.StrEnum):
     """How one amount a parent pays for several children is shared (see payments/family_split.py)."""
 
@@ -67,6 +74,10 @@ class School(UUIDPrimaryKey, Timestamped, Base):
         enum_type(FamilySplitRule, "family_split_rule"),
         default=FamilySplitRule.CLEAR_MOST,
         server_default=FamilySplitRule.CLEAR_MOST.value,
+    )
+    # Who pays the provider's charge on online checkouts (owner, 2026-10-27: each school chooses; school by default)
+    checkout_charge_payer: Mapped[ChargePayer] = mapped_column(
+        enum_type(ChargePayer, "checkout_charge_payer"), default=ChargePayer.SCHOOL, server_default="school"
     )
     # Nothing dated on or before this day can be recorded (a closed term); see accounting/periods.py
     books_closed_through: Mapped[date | None] = mapped_column(Date)

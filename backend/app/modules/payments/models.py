@@ -117,6 +117,7 @@ class PaymentIntent(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
     __table_args__ = (
         UniqueConstraint("reference"),
         CheckConstraint("amount_kobo > 0", name="amount_positive"),
+        CheckConstraint("charge_kobo >= 0", name="charge_not_negative"),
         # One child, or a family link whose children are the intent's items
         CheckConstraint("(student_id IS NULL) <> (family_link_id IS NULL)", name="one_child_or_family"),
     )
@@ -125,7 +126,10 @@ class PaymentIntent(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
     student_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("students.id", ondelete="RESTRICT"), index=True)
     family_link_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("family_pay_links.id", ondelete="RESTRICT"))
     gateway: Mapped[GatewayCode] = mapped_column(GATEWAY_ENUM)
-    amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    amount_kobo: Mapped[int] = mapped_column(BigInteger)  # for the fees: what the bills are credited with
+    # The provider's charge the parent pays on top (school's choice; 0 when the school bears it). The checkout is
+    # for amount_kobo + charge_kobo.
+    charge_kobo: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     email: Mapped[str] = mapped_column(EncryptedString)
     status: Mapped[IntentStatus] = mapped_column(
         enum_type(IntentStatus, "payment_intent_status"), default=IntentStatus.PENDING

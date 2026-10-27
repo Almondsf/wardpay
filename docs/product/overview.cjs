@@ -198,7 +198,7 @@ const AREAS = [
 const PRICING = [
   ['Set-up fee', 'Once, when the school joins'],
   ['Per pupil', 'A third of the yearly fee each term, for the pupils enrolled that term'],
-  ['Parents', 'Free. Card and bank charges come off each payment.'],
+  ['Parents', 'Free. Payment charges come off each payment, unless the school asks parents to pay the online-payment charge on top (transfers to a child’s account number stay free).'],
 ];
 
 const COMING = [
@@ -208,6 +208,7 @@ const COMING = [
 
 // Newest first. Add a line whenever something ships.
 const CHANGES = [
+  ['27 Oct 2026', 'Each school chooses whether it or the parent pays the charge on online payments'],
   ['27 Oct 2026', 'Parents with children at several branches sign in once and see what is owed at each branch'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once, switches branch, and sees every branch’s money side by side'],
   ['25 Oct 2026', 'Schools set their own instalment plans (“Pay in 3”), and parents choose them on their phone'],

@@ -1698,6 +1698,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payment-settings/checkout-charges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who pays the provider's charge on online checkouts (card, transfer or USSD on the payment page) */
+        get: operations["payments_get_checkout_charges"];
+        /**
+         * Choose who pays the provider's charge on online checkouts (proprietor; audited)
+         * @description Owner, 2026-10-27: each school chooses; the school bears it unless it says otherwise. Only checkouts started
+         *     from now on are affected.
+         */
+        put: operations["payments_set_checkout_charges"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-settings/family-split-rule": {
         parameters: {
             query?: never;
@@ -4379,6 +4401,12 @@ export interface components {
          * @enum {string}
          */
         Channel: "whatsapp" | "sms" | "email" | "voice";
+        /**
+         * ChargePayer
+         * @description Who pays the provider's charge on an online checkout (see payments/checkout_charges.py).
+         * @enum {string}
+         */
+        ChargePayer: "school" | "parent";
         /** ChargeStudentOut */
         ChargeStudentOut: {
             /** Admission Number */
@@ -4397,12 +4425,41 @@ export interface components {
              */
             student_id: string;
         };
+        /**
+         * CheckoutChargeOut
+         * @description The provider's charge, when the school has parents pay it on top: charge = gross - amount, where gross is
+         *     the smallest amount with gross - fee(gross) >= amount, and fee(g) = min(ceil(g * percent_bp / 10000) +
+         *     (flat_kobo if g >= flat_from_kobo else 0), cap_kobo).
+         */
+        CheckoutChargeOut: {
+            /** Cap Kobo */
+            cap_kobo: number;
+            /** Flat From Kobo */
+            flat_from_kobo: number;
+            /** Flat Kobo */
+            flat_kobo: number;
+            /** Percent Bp */
+            percent_bp: number;
+        };
+        /** CheckoutChargesIo */
+        CheckoutChargesIo: {
+            /** @description Who pays the provider's charge on online checkouts */
+            payer: components["schemas"]["ChargePayer"];
+        };
         /** CheckoutOut */
         CheckoutOut: {
-            /** Amount Kobo */
+            /**
+             * Amount Kobo
+             * @description For the fees: what the bill is credited with
+             */
             amount_kobo: number;
             /** Authorization Url */
             authorization_url: string;
+            /**
+             * Charge Kobo
+             * @description The provider's charge paid on top (0 unless the school chose)
+             */
+            charge_kobo: number;
             /** Reference */
             reference: string;
         };
@@ -5137,10 +5194,18 @@ export interface components {
         };
         /** FamilyCheckoutOut */
         FamilyCheckoutOut: {
-            /** Amount Kobo */
+            /**
+             * Amount Kobo
+             * @description For the fees: what the bills are credited with
+             */
             amount_kobo: number;
             /** Authorization Url */
             authorization_url: string;
+            /**
+             * Charge Kobo
+             * @description The provider's charge paid on top (0 unless the school chose)
+             */
+            charge_kobo: number;
             /** Reference */
             reference: string;
         };
@@ -5219,6 +5284,8 @@ export interface components {
              * @description Whether the school takes card payments
              */
             card_payments: boolean;
+            /** @description Paying online adds the provider's charge on top (the school's choice); null: no */
+            checkout_charge?: components["schemas"]["CheckoutChargeOut"] | null;
             /** Children */
             children: components["schemas"]["FamilyChildOut"][];
             /**
@@ -5655,6 +5722,8 @@ export interface components {
         };
         /** HomeOut */
         HomeOut: {
+            /** @description Paying online adds the provider's charge on top (the school's choice); null: no */
+            checkout_charge?: components["schemas"]["CheckoutChargeOut"] | null;
             /** Children */
             children: components["schemas"]["ChildOut"][];
             /** Guardian Name */
@@ -6732,10 +6801,18 @@ export interface components {
         };
         /** PaymentLinkOut */
         PaymentLinkOut: {
-            /** Amount Kobo */
+            /**
+             * Amount Kobo
+             * @description For the fees: what the bill is credited with
+             */
             amount_kobo: number;
             /** Authorization Url */
             authorization_url: string;
+            /**
+             * Charge Kobo
+             * @description The provider's charge the parent pays on top (school's choice)
+             */
+            charge_kobo: number;
             /** Reference */
             reference: string;
         };
@@ -18076,6 +18153,176 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BankOut"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    payments_get_checkout_charges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutChargesIo"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    payments_set_checkout_charges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutChargesIo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutChargesIo"];
                 };
             };
             /** @description Bad Request */

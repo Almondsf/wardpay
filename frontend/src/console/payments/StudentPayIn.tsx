@@ -92,7 +92,15 @@ function PaymentLink({ studentId, onClose }: { studentId: string; onClose: () =>
     <Modal title="Card payment link" onClose={onClose}>
       {create.data ? (
         <>
-          <p>Send this link to the parent. It's for {formatKobo(create.data.amount_kobo)}.</p>
+          <p>
+            Send this link to the parent. It's for {formatKobo(create.data.amount_kobo)}
+            {create.data.charge_kobo > 0 && (
+              <>
+                , plus a {formatKobo(create.data.charge_kobo)} payment charge the parent pays (your school's setting): {formatKobo(create.data.amount_kobo + create.data.charge_kobo)} in all
+              </>
+            )}
+            .
+          </p>
           <input readOnly value={create.data.authorization_url} onFocus={(e) => e.target.select()} aria-label="Payment link" />
           <div className="row end">
             <button onClick={() => void navigator.clipboard?.writeText(create.data.authorization_url)}>Copy link</button>

@@ -8,6 +8,7 @@ import { formatKobo, koboToInput, parseNairaToKobo } from '../lib/format';
 import { FeeList, FeePicker, leftOn } from '../lib/FeeBreakdown';
 import { ErrorAlert, Field, Loading } from '../lib/ui';
 import { PlanChoices, type PlanOffer } from './PlanChoices';
+import { ChargeNote, chargeFor, type ChargeRule } from '../lib/checkoutCharge';
 
 type Child = Schemas['FamilyChildOut'];
 type Checkout = (body: Schemas['FamilyCheckoutIn']) => Promise<Schemas['FamilyCheckoutOut']>;
@@ -178,8 +179,9 @@ export function FamilyPayment({
           <strong className="pay-all-amount">{formatKobo(dueNow)}</strong>
           <ErrorAlert error={pay.error} />
           <button className="block" onClick={() => pay.mutate({ total_kobo: dueNow })} disabled={dueNow <= 0 || pay.isPending}>
-            {pay.isPending ? 'Opening…' : `Pay ${formatKobo(dueNow)}`}
+            {pay.isPending ? 'Opening…' : `Pay ${formatKobo(dueNow + chargeFor(data.checkout_charge, dueNow))}`}
           </button>
+          <ChargeNote rule={data.checkout_charge} amount={dueNow} />
           {onProviderPage}
           {switches}
         </section>
@@ -190,6 +192,7 @@ export function FamilyPayment({
           minKobo={Math.min(data.min_part_kobo, owedAll)}
           owing={owing}
           rule={RULE_WORDS[data.split_rule]}
+          charge={data.checkout_charge}
           preview={preview}
           pending={pay.isPending}
           error={pay.error}
@@ -227,8 +230,9 @@ export function FamilyPayment({
           {owing.length > 1 && <p className="hint">Change any amount above, or clear it to leave that child for later.</p>}
           <ErrorAlert error={pay.error} />
           <button className="block" onClick={payEach} disabled={!valid || pay.isPending}>
-            {pay.isPending ? 'Opening…' : `Pay ${formatKobo(total)} now`}
+            {pay.isPending ? 'Opening…' : `Pay ${formatKobo(total + chargeFor(data.checkout_charge, total))} now`}
           </button>
+          <ChargeNote rule={data.checkout_charge} amount={total} />
           {onProviderPage}
           {switches}
         </section>
@@ -243,6 +247,7 @@ function OneAmount({
   minKobo,
   owing,
   rule,
+  charge,
   preview,
   pending,
   error,
@@ -253,6 +258,7 @@ function OneAmount({
   minKobo: number;
   owing: Child[];
   rule: string;
+  charge: ChargeRule | null | undefined;
   preview: Preview;
   pending: boolean;
   error: unknown;
@@ -306,8 +312,9 @@ function OneAmount({
       )}
       <ErrorAlert error={error ?? shares.error} />
       <button className="block" onClick={() => kobo !== null && onPay(kobo)} disabled={!ready || pending}>
-        {pending ? 'Opening…' : ready ? `Pay ${formatKobo(kobo)}` : 'Enter an amount'}
+        {pending ? 'Opening…' : ready ? `Pay ${formatKobo(kobo + chargeFor(charge, kobo))}` : 'Enter an amount'}
       </button>
+      {ready && <ChargeNote rule={charge} amount={kobo} />}
       {children}
     </section>
   );

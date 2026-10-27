@@ -74,6 +74,9 @@ anything that doesn't happen as described:
       platform's one Paystack business. Ask too what the fee per transfer into these accounts is
       (their help pages say both 1% capped at ₦300 and 1.5% + ₦100) and whether parents need
       identity checks.
+      _(new, 2026-10-27)_ Ask them too whether **schools may add the checkout charge for parents**
+      (schools can now choose that under Payment settings; Paystack's own help page says charges can be
+      passed to customers, but confirm it for schools before telling a school to switch it on).
 - [x] **Provider decided: Paystack** (2026-10-20). Bachs is built in and can be switched on
       later from Platform → Providers (it needs its keys), but isn't configured. Reason: Bachs
       can't give each pupil their own account number.

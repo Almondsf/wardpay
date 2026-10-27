@@ -190,6 +190,20 @@ const SECTIONS = [
           'Choose: old balances first then clear as many children as possible; in proportion to what each child owes; eldest child first; or youngest child first.',
         ],
       },
+      {
+        name: 'Payment settings: charges on online payments',
+        who: 'Proprietor (others can see it)',
+        purpose:
+          'Decide who pays Paystack’s charge when a parent pays on the payment page (card, bank transfer or USSD there all cost 1.5% plus ₦100, at most ₦2,000).',
+        steps: [
+          'Go to Setup → Payment settings, under “Charges on online payments”.',
+          'Choose The school (parents pay exactly the fees; the charge comes off what reaches the bank) or The parent, added on top (for ₦100,000 of fees the parent pays ₦101,624.37 and the school receives ₦100,000).',
+        ],
+        notes: [
+          'Our advice: ask parents to transfer into their child’s own account number. It costs far less (at most ₦300, paid by the school), and parents pay no charge at all.',
+          'Parents see any charge before they pay, on the button and under it.',
+        ],
+      },
     ],
   },
   {
@@ -764,6 +778,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['27 Oct 2026', 'Schools choose who pays the charge on online payments: the school, or the parent on top (shown before paying).'],
   ['27 Oct 2026', 'Parents with children at several branches of a group sign in once and open each branch from their home page.'],
   ['27 Oct 2026', 'All branches: head office sees every branch’s money side by side, with totals and an Excel download.'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once and switches branch from a menu; set up by the WardPay team.'],

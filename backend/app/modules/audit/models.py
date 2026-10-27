@@ -66,6 +66,7 @@ class AuditAction(enum.StrEnum):
     SUBSCRIPTION_DISCOUNTED = "platform.subscription_discount"
     SUBSCRIPTION_DUE_DATE_CHANGED = "platform.subscription_due_date"
     FAMILY_SPLIT_RULE_CHANGED = "payments.family_split_rule"
+    CHECKOUT_CHARGE_PAYER_CHANGED = "payments.checkout_charge_payer"
     CASH_DEPOSIT_RECORDED = "payments.cash_banked"
     CASH_DEPOSIT_CONFIRMED = "payments.cash_banking_confirmed"
     CASH_DEPOSIT_REJECTED = "payments.cash_banking_rejected"

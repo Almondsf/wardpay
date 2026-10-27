@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Cookie, Depends, Response, status
 from pydantic import BaseModel, Field, StringConstraints
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -18,7 +19,10 @@ from app.modules.fees.router import PaymentPlanOut, PlanOfferOut, offer_out
 from app.modules.fees.setup_service import MAX_AMOUNT_KOBO
 from app.modules.payments import checkout, family, family_links
 from app.modules.payments import service as payment_service
+from app.modules.payments.accounts import payment_account
+from app.modules.payments.checkout_charges import rule_for
 from app.modules.payments.family_router import (
+    CheckoutChargeOut,
     FamilyCheckoutIn,
     FamilyCheckoutOut,
     FamilyPageOut,
@@ -31,6 +35,7 @@ from app.modules.payments.models import PaymentKind, PaymentMethod
 from app.modules.receipts.pdf import render_receipt
 from app.modules.receipts.service import is_reversed, receipts_for_payments
 from app.modules.reports.router import FeeLineOut, breakdown_out
+from app.modules.schools.models import School
 
 from . import auth_service, branches, portal
 from .deps import ParentContext, get_parent, get_parent_across_branches
@@ -105,6 +110,9 @@ class HomeOut(BaseModel):
     guardian_name: str
     school_name: str
     children: list[ChildOut]
+    checkout_charge: CheckoutChargeOut | None = Field(
+        default=None, description="Paying online adds the provider's charge on top (the school's choice); null: no"
+    )
 
 
 class ParentInvoiceOut(BaseModel):
@@ -156,7 +164,8 @@ class PayIn(BaseModel):
 
 class CheckoutOut(BaseModel):
     reference: str
-    amount_kobo: int
+    amount_kobo: int = Field(description="For the fees: what the bill is credited with")
+    charge_kobo: int = Field(description="The provider's charge paid on top (0 unless the school chose)")
     authorization_url: str
 
 
@@ -339,10 +348,14 @@ def _invoice_out(
 @router.get("/home", response_model=HomeOut, summary="The parent's children with balances and account numbers")
 def home(ctx: ParentContext = Depends(get_parent), db: Session = Depends(get_db)) -> HomeOut:
     house = portal.household(db, ctx)
+    account = payment_account(db)
+    payer = db.scalar(select(School.checkout_charge_payer).where(School.id == ctx.school_id))
+    rule = rule_for(account.gateway, payer) if account and payer else None
     return HomeOut(
         guardian_name=house.guardian_name,
         school_name=house.school_name,
         children=[_child_out(c) for c in house.children],
+        checkout_charge=CheckoutChargeOut.model_validate(rule) if rule else None,
     )
 
 
@@ -443,7 +456,10 @@ def pay(
         created_by=None,
     )
     return CheckoutOut(
-        reference=intent.reference, amount_kobo=intent.amount_kobo, authorization_url=intent.authorization_url
+        reference=intent.reference,
+        amount_kobo=intent.amount_kobo,
+        charge_kobo=intent.charge_kobo,
+        authorization_url=intent.authorization_url,
     )
 
 

@@ -22,7 +22,7 @@ from app.modules.audit.models import AuditAction
 from app.modules.audit.service import record
 from app.modules.fees.setup_service import MAX_AMOUNT_KOBO
 from app.modules.receipts.service import receipts_for_payments
-from app.modules.schools.models import FamilySplitRule, School
+from app.modules.schools.models import ChargePayer, FamilySplitRule, School
 from app.modules.students.models import Student
 
 from . import accounts, cashbook, checkout, earmarks, manual, paycards, providers, service, settlements, webhooks
@@ -182,7 +182,8 @@ class PaymentLinkIn(BaseModel):
 
 class PaymentLinkOut(BaseModel):
     reference: str
-    amount_kobo: int
+    amount_kobo: int = Field(description="For the fees: what the bill is credited with")
+    charge_kobo: int = Field(description="The provider's charge the parent pays on top (school's choice)")
     authorization_url: str
 
 
@@ -317,6 +318,49 @@ def set_family_split_rule(
         )
         db.commit()
     return FamilySplitRuleIo(rule=school.family_split_rule)
+
+
+class CheckoutChargesIo(BaseModel):
+    payer: ChargePayer = Field(description="Who pays the provider's charge on online checkouts")
+
+
+@router.get(
+    "/payment-settings/checkout-charges",
+    response_model=CheckoutChargesIo,
+    summary="Who pays the provider's charge on online checkouts (card, transfer or USSD on the payment page)",
+)
+def get_checkout_charges(ctx: StaffContext = VIEW, db: Session = Depends(get_db)) -> CheckoutChargesIo:
+    payer = db.scalar(select(School.checkout_charge_payer).where(School.id == ctx.school_id))
+    return CheckoutChargesIo(payer=payer or ChargePayer.SCHOOL)
+
+
+@router.put(
+    "/payment-settings/checkout-charges",
+    response_model=CheckoutChargesIo,
+    summary="Choose who pays the provider's charge on online checkouts (proprietor; audited)",
+)
+def set_checkout_charges(
+    body: CheckoutChargesIo, ctx: StaffContext = SETUP, db: Session = Depends(get_db)
+) -> CheckoutChargesIo:
+    """Owner, 2026-10-27: each school chooses; the school bears it unless it says otherwise. Only checkouts started
+    from now on are affected."""
+    school = db.get(School, ctx.school_id, with_for_update=True)
+    if school is None:
+        raise NotFound("School not found.")
+    before = school.checkout_charge_payer
+    if before != body.payer:
+        school.checkout_charge_payer = body.payer
+        record(
+            db,
+            AuditAction.CHECKOUT_CHARGE_PAYER_CHANGED,
+            school_id=ctx.school_id,
+            actor=ctx.actor,
+            meta=ctx.meta,
+            target=school,
+            changes={"before": before, "after": body.payer},
+        )
+        db.commit()
+    return CheckoutChargesIo(payer=school.checkout_charge_payer)
 
 
 @router.post(
@@ -566,7 +610,10 @@ def payment_link(
         created_by=ctx.user.id,
     )
     return PaymentLinkOut(
-        reference=intent.reference, amount_kobo=intent.amount_kobo, authorization_url=intent.authorization_url
+        reference=intent.reference,
+        amount_kobo=intent.amount_kobo,
+        charge_kobo=intent.charge_kobo,
+        authorization_url=intent.authorization_url,
     )
 
 

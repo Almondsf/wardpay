@@ -118,8 +118,78 @@ export function PaymentSettings() {
           )}
         </div>
       </div>
+      <CheckoutChargesCard />
       <FamilySplitRuleCard />
     </>
+  );
+}
+
+/**
+ * Who pays the payment provider's charge when a parent pays on its checkout page (card, transfer or USSD there all
+ * cost the same). The proprietor chooses; parents see the charge before paying.
+ */
+function CheckoutChargesCard() {
+  const { can } = useAuth();
+  const queryClient = useQueryClient();
+  const current = useQuery({
+    queryKey: ['checkout-charges'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/payment-settings/checkout-charges')),
+  });
+  const save = useMutation({
+    mutationFn: async (payer: Schemas['ChargePayer']) =>
+      unwrap(await api.PUT('/api/v1/payment-settings/checkout-charges', { body: { payer } })),
+    onSuccess: (data) => queryClient.setQueryData(['checkout-charges'], data),
+  });
+  const editable = can('payments.setup');
+  return (
+    <section className="card section page--narrow" aria-label="Online payment charges">
+      <h2>Charges on online payments</h2>
+      <p className="small">
+        When a parent pays on the payment page (card, bank transfer or USSD there), Paystack charges 1.5% plus ₦100 (no ₦100 under
+        ₦2,500), never more than ₦2,000. A transfer into a pupil’s own account number costs much less, at most ₦300, and that charge
+        always stays with the school.
+      </p>
+      <p className="small">
+        <strong>Our advice:</strong> ask parents to pay by transfer into their child’s account number. It’s the cheapest for everyone and the
+        money is matched to the child automatically.
+      </p>
+      {current.isPending ? (
+        <Loading />
+      ) : (
+        <fieldset disabled={!editable || save.isPending}>
+          <legend>Who pays the charge on the payment page</legend>
+          <label className="checkbox">
+            <input
+              type="radio"
+              name="checkout-charge-payer"
+              checked={current.data?.payer === 'school'}
+              onChange={() => save.mutate('school')}
+            />
+            <span>
+              The school
+              <span className="hint">Parents pay exactly the fees; the charge comes off what reaches the school’s bank (like POS).</span>
+            </span>
+          </label>
+          <label className="checkbox">
+            <input
+              type="radio"
+              name="checkout-charge-payer"
+              checked={current.data?.payer === 'parent'}
+              onChange={() => save.mutate('parent')}
+            />
+            <span>
+              The parent, added on top
+              <span className="hint">
+                For ₦100,000 of fees the parent pays ₦101,624.37 and the school receives ₦100,000. Parents see the charge before they pay.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+      )}
+      <ErrorAlert error={current.error ?? save.error} />
+      {save.isSuccess && <Notice>Saved. It applies to payments started from now on.</Notice>}
+      {!editable && <p className="hint">Only the proprietor can change this.</p>}
+    </section>
   );
 }
 

@@ -6,6 +6,7 @@ import { Link, Navigate, Outlet, Route, Routes, useParams } from 'react-router-d
 import { api, unwrap, type Schemas } from '../api/client';
 import { BRAND } from '../lib/brand';
 import { saveBlob } from '../lib/download';
+import { ChargeNote, chargeFor } from '../lib/checkoutCharge';
 import { FeeList } from '../lib/FeeBreakdown';
 import { PlanSchedule } from '../lib/PlanSchedule';
 import { INVOICE_KIND_LABELS, formatDate, formatKobo, humanize, parseNairaToKobo } from '../lib/format';
@@ -316,6 +317,8 @@ function TransferDetails({ account }: { account: Schemas['PayInAccount'] }) {
 function PayByCard({ child, onClose }: { child: Child; onClose: () => void }) {
   const [amount, setAmount] = useState('');
   const kobo = amount ? parseNairaToKobo(amount) : null;
+  const rule = useHome().data?.checkout_charge;
+  const fees = kobo ?? child.owed_kobo;
   const pay = useMutation({
     mutationFn: async () =>
       unwrap(await api.POST('/api/v1/parent/children/{student_id}/pay', { params: { path: { student_id: child.id } }, body: { amount_kobo: kobo } })),
@@ -328,12 +331,13 @@ function PayByCard({ child, onClose }: { child: Child; onClose: () => void }) {
         <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
       </Field>
       <p className="hint">On the payment provider's secure page, pay by bank transfer, card or USSD. We never see your card details.</p>
+      <ChargeNote rule={rule} amount={fees} transferFree={!!child.pay_in} />
       <div className="row end">
         <button className="secondary" onClick={onClose}>
           Cancel
         </button>
         <button onClick={() => pay.mutate()} disabled={pay.isPending || (!!amount && kobo === null)}>
-          {pay.isPending ? 'Opening…' : 'Continue to pay'}
+          {pay.isPending ? 'Opening…' : chargeFor(rule, fees) > 0 ? `Continue to pay ${formatKobo(fees + chargeFor(rule, fees))}` : 'Continue to pay'}
         </button>
       </div>
     </Modal>

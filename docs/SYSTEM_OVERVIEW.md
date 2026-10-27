@@ -476,7 +476,25 @@ Module: `app/modules/payments`.
 name and creates a **subaccount**. Every card payment and every transfer into a
 student's account number is split by the gateway: the school's share settles
 to the school, and the platform fee (`PLATFORM_FEE_BP`, recorded per school)
-settles to us. The school bears the gateway's own charges.
+settles to us. The school bears the gateway's own charges, unless it chooses otherwise
+for online checkouts (below).
+
+**Who pays the charge on online checkouts** (`checkout_charges.py`; owner, 2026-10-27, each
+school chooses; `schools.checkout_charge_payer`, `GET/PUT /payment-settings/checkout-charges`,
+proprietor, audited). Paystack charges every channel on its checkout page alike (card, bank
+transfer, USSD): 1.5%, plus ₦100 from ₦2,500, capped at ₦2,000. **School** (the default): the
+parent pays exactly the fees and the charge comes off the payout. **Parent**: the checkout adds
+the charge on top, grossed up so the school still receives the fees in full (`ChargeRule.gross_up`:
+the smallest amount with amount − fee ≥ fees; ₦100,000 → ₦101,624.37, from ₦125,000 the ₦2,000
+cap). The intent keeps the fees (`amount_kobo`) and the charge (`charge_kobo`) apart; the gateway is
+asked for both; `confirm()` requires exactly that total (anything else is parked for review, never
+guessed) and credits the bills with the fees only, so receipts, balances and the books never include
+the charge. Parent pages get the rule (`checkout_charge` on the family page and the portal home) and
+show "Includes a ₦… payment charge" and the total on the Pay button; the frontend works it out with
+the same formula (`lib/checkoutCharge.tsx`, tested against the server's figures). Staff payment links
+show it too. A provider whose rates aren't in `RULES` adds nothing (the school bears it). A transfer
+into a pupil's own account number never goes through checkout and can't carry a charge (at most ₦300,
+borne by the school), which is why the screen advises schools to point parents there.
 
 **Gateways** (`gateways/`): Paystack, Flutterwave and a fake one share one
 interface: list banks, resolve an account, create a subaccount, create a
@@ -1393,6 +1411,7 @@ production.
 |---|---|
 | Health | `GET /health`, `GET /health/ready` |
 | Sign-in | `POST /auth/login`, `/auth/login/mfa`, `/auth/refresh`, `/auth/logout`; `GET /auth/me`; `POST /auth/branch` (head office) |
+| Online payment charges | `GET/PUT /payment-settings/checkout-charges` (who pays the provider's charge on checkouts) |
 | Head office | `GET /reports/group`, `GET /reports/group/export` (every branch's figures; group staff only) |
 | Parents at several branches | `GET /parent/branches`, `POST /parent/auth/switch-branch` |
 | Passwords | `POST /auth/password/change`, `/auth/password/forgot`, `/auth/password/set` |

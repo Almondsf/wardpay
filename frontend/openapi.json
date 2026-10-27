@@ -1289,6 +1289,15 @@
         "title": "Channel",
         "type": "string"
       },
+      "ChargePayer": {
+        "description": "Who pays the provider's charge on an online checkout (see payments/checkout_charges.py).",
+        "enum": [
+          "school",
+          "parent"
+        ],
+        "title": "ChargePayer",
+        "type": "string"
+      },
       "ChargeStudentOut": {
         "properties": {
           "admission_number": {
@@ -1328,15 +1337,63 @@
         "title": "ChargeStudentOut",
         "type": "object"
       },
+      "CheckoutChargeOut": {
+        "description": "The provider's charge, when the school has parents pay it on top: charge = gross - amount, where gross is\nthe smallest amount with gross - fee(gross) >= amount, and fee(g) = min(ceil(g * percent_bp / 10000) +\n(flat_kobo if g >= flat_from_kobo else 0), cap_kobo).",
+        "properties": {
+          "cap_kobo": {
+            "title": "Cap Kobo",
+            "type": "integer"
+          },
+          "flat_from_kobo": {
+            "title": "Flat From Kobo",
+            "type": "integer"
+          },
+          "flat_kobo": {
+            "title": "Flat Kobo",
+            "type": "integer"
+          },
+          "percent_bp": {
+            "title": "Percent Bp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "percent_bp",
+          "flat_kobo",
+          "flat_from_kobo",
+          "cap_kobo"
+        ],
+        "title": "CheckoutChargeOut",
+        "type": "object"
+      },
+      "CheckoutChargesIo": {
+        "properties": {
+          "payer": {
+            "$ref": "#/components/schemas/ChargePayer",
+            "description": "Who pays the provider's charge on online checkouts"
+          }
+        },
+        "required": [
+          "payer"
+        ],
+        "title": "CheckoutChargesIo",
+        "type": "object"
+      },
       "CheckoutOut": {
         "properties": {
           "amount_kobo": {
+            "description": "For the fees: what the bill is credited with",
             "title": "Amount Kobo",
             "type": "integer"
           },
           "authorization_url": {
             "title": "Authorization Url",
             "type": "string"
+          },
+          "charge_kobo": {
+            "description": "The provider's charge paid on top (0 unless the school chose)",
+            "title": "Charge Kobo",
+            "type": "integer"
           },
           "reference": {
             "title": "Reference",
@@ -1346,6 +1403,7 @@
         "required": [
           "reference",
           "amount_kobo",
+          "charge_kobo",
           "authorization_url"
         ],
         "title": "CheckoutOut",
@@ -3081,12 +3139,18 @@
       "FamilyCheckoutOut": {
         "properties": {
           "amount_kobo": {
+            "description": "For the fees: what the bills are credited with",
             "title": "Amount Kobo",
             "type": "integer"
           },
           "authorization_url": {
             "title": "Authorization Url",
             "type": "string"
+          },
+          "charge_kobo": {
+            "description": "The provider's charge paid on top (0 unless the school chose)",
+            "title": "Charge Kobo",
+            "type": "integer"
           },
           "reference": {
             "title": "Reference",
@@ -3096,6 +3160,7 @@
         "required": [
           "reference",
           "amount_kobo",
+          "charge_kobo",
           "authorization_url"
         ],
         "title": "FamilyCheckoutOut",
@@ -3250,6 +3315,17 @@
             "description": "Whether the school takes card payments",
             "title": "Card Payments",
             "type": "boolean"
+          },
+          "checkout_charge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutChargeOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Paying online adds the provider's charge on top (the school's choice); null: no"
           },
           "children": {
             "items": {
@@ -4254,6 +4330,17 @@
       },
       "HomeOut": {
         "properties": {
+          "checkout_charge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutChargeOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Paying online adds the provider's charge on top (the school's choice); null: no"
+          },
           "children": {
             "items": {
               "$ref": "#/components/schemas/ChildOut"
@@ -6875,12 +6962,18 @@
       "PaymentLinkOut": {
         "properties": {
           "amount_kobo": {
+            "description": "For the fees: what the bill is credited with",
             "title": "Amount Kobo",
             "type": "integer"
           },
           "authorization_url": {
             "title": "Authorization Url",
             "type": "string"
+          },
+          "charge_kobo": {
+            "description": "The provider's charge the parent pays on top (school's choice)",
+            "title": "Charge Kobo",
+            "type": "integer"
           },
           "reference": {
             "title": "Reference",
@@ -6890,6 +6983,7 @@
         "required": [
           "reference",
           "amount_kobo",
+          "charge_kobo",
           "authorization_url"
         ],
         "title": "PaymentLinkOut",
@@ -23591,6 +23685,207 @@
           }
         ],
         "summary": "Banks the gateway can pay out to",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payment-settings/checkout-charges": {
+      "get": {
+        "operationId": "payments_get_checkout_charges",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutChargesIo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Who pays the provider's charge on online checkouts (card, transfer or USSD on the payment page)",
+        "tags": [
+          "payments"
+        ]
+      },
+      "put": {
+        "description": "Owner, 2026-10-27: each school chooses; the school bears it unless it says otherwise. Only checkouts started\nfrom now on are affected.",
+        "operationId": "payments_set_checkout_charges",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutChargesIo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutChargesIo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Choose who pays the provider's charge on online checkouts (proprietor; audited)",
         "tags": [
           "payments"
         ]

@@ -7,6 +7,10 @@ Card payments through the gateway's hosted checkout (no card data touches us).
    and the gateway sends a webhook. Both end up in `confirm()`, which asks the
    gateway what really happened and records the payment exactly once.
 
+If the school has chosen that parents pay the provider's charge (`checkout_charges.py`), the
+checkout is for the fees plus that charge (`charge_kobo`); the bills are only ever credited with
+the fees.
+
 A family checkout (`family.py`) pays for several children at once: `confirm()`
 records one payment per child, for the amounts the parent chose, each with its own
 gateway reference (`<reference>-1`, `-2`, ...) so it's still recorded only once.
@@ -33,13 +37,20 @@ from app.modules.schools.models import School
 from app.modules.students.models import Guardian, Student
 
 from .accounts import require_payment_account
+from .checkout_charges import ChargePayer, parent_charge
 from .earmarks import Earmark
-from .gateways import TransactionStatus, get_gateway
+from .gateways import GatewayCode, TransactionStatus, get_gateway
 from .gateways.base import parse_paid_at
 from .models import IntentStatus, PaymentIntent, PaymentIntentItem, method_for_channel
 from .service import NewPayment, record_payments
 
 logger = logging.getLogger(__name__)
+
+
+def checkout_charge(session: Session, school_id: uuid.UUID, gateway: GatewayCode, amount_kobo: int) -> int:
+    """The provider's charge the parent pays on top of `amount_kobo`: 0 unless the school chose so."""
+    payer = session.scalar(select(School.checkout_charge_payer).where(School.id == school_id))
+    return parent_charge(gateway, payer or ChargePayer.SCHOOL, amount_kobo)
 
 
 def new_reference() -> str:
@@ -76,6 +87,7 @@ def start_checkout(
         student_id=student.id,
         gateway=account.gateway,
         amount_kobo=amount,
+        charge_kobo=checkout_charge(session, student.school_id, account.gateway, amount),
         email=email,
         created_by=created_by,
     )
@@ -83,7 +95,7 @@ def start_checkout(
     settings = get_settings()
     checkout = get_gateway(account.gateway).initialize_payment(
         reference=intent.reference,
-        amount_kobo=amount,
+        amount_kobo=amount + intent.charge_kobo,
         email=email,
         subaccount_code=account.subaccount_code,
         callback_url=f"{settings.frontend_url}{settings.payment_callback_path}",
@@ -98,7 +110,12 @@ def start_checkout(
         actor=actor,
         meta=meta,
         target=intent,
-        changes={"student": student.id, "amount_kobo": amount, "reference": intent.reference},
+        changes={
+            "student": student.id,
+            "amount_kobo": amount,
+            "charge_kobo": intent.charge_kobo,
+            "reference": intent.reference,
+        },
     )
     session.commit()
     return intent
@@ -137,13 +154,16 @@ def confirm(reference: str, payment_id: str | None = None) -> PaymentIntent | No
                 .order_by(PaymentIntentItem.position)
             )
         )
-        wrong_total = bool(items) and verification.amount_kobo != intent.amount_kobo
+        expected = intent.amount_kobo + intent.charge_kobo
+        # A family payment is split as chosen, and a payment with the parent's charge on top is credited with the
+        # fees only: both need exactly the amount the checkout asked for
+        wrong_total = (bool(items) or intent.charge_kobo > 0) and verification.amount_kobo != expected
         wrong_payment = verification.reference != reference  # a payment id that belongs to another checkout
         if verification.currency != "NGN" or verification.amount_kobo <= 0 or wrong_total or wrong_payment:
             intent.status = IntentStatus.NEEDS_REVIEW
             intent.review_reason = (
                 f"Paid {verification.amount_kobo} kobo in {verification.currency or '?'}"
-                + (f", expected {intent.amount_kobo} to split between children" if wrong_total else "")
+                + (f", expected {expected}" if wrong_total else "")
                 + (f", for another reference ({verification.reference[:40]})" if wrong_payment else "")
             )
             record(
@@ -162,8 +182,8 @@ def confirm(reference: str, payment_id: str | None = None) -> PaymentIntent | No
             parts = [
                 (item.student_id, item.amount_kobo, f"{reference}-{item.position}", item.earmarks) for item in items
             ]
-        elif intent.student_id is not None:  # the verified amount is what reached the school's account
-            parts = [(intent.student_id, verification.amount_kobo, reference, [])]
+        elif intent.student_id is not None:  # the verified amount, less any charge the parent paid on top
+            parts = [(intent.student_id, verification.amount_kobo - intent.charge_kobo, reference, [])]
         else:
             raise RuntimeError(f"Checkout {reference} has no child to pay for.")
         record_payments(

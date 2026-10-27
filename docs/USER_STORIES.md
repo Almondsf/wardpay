@@ -3,6 +3,7 @@
 What each kind of user needs from WardPay. Stories are marked ✅ when built.
 
 ## Proprietor (school owner)
+- ✅ Choose who pays Paystack's charge when parents pay on the payment page (card, transfer or USSD there): the school (the default) or the parent on top, so the school still receives the fees in full; parents see the charge before paying, and transfers into the pupils' account numbers stay free for them.
 - ✅ See unusual activity (reversals, cash recorded late or after the day was closed, short drawer counts, bills cut or voided, write-offs, rejected banking, spending entered twice) with who recorded it, and a note on the dashboard when something needs a look.
 - ✅ Approve or reject staff requests to write off debt the school won't collect; my own write-offs apply at once.
 - ✅ See what Paystack paid into the bank against what parents paid, the charges in between, payments not paid out after a few days, and payouts WardPay can't match.
@@ -83,6 +84,7 @@ What each kind of user needs from WardPay. Stories are marked ✅ when built.
 - ✅ Move everyone into the next term, or promote them a class at the start of a new session (final-year students graduate), with a preview first.
 
 ## Parent
+- ✅ See any payment charge my school asks me to pay before I pay online, and that paying into my child's account number avoids it.
 - ✅ With children at several branches of one school group, sign in once, see what's owed at each branch on my home page, and open another branch without a new code; each branch is paid on its own page.
 - ✅ Spread a child's fees myself with one of the school's instalment plans ("Pay in 3"), seeing the dates, amounts and any plan charge before I choose, from my payment link or the portal.
 - ✅ Pay for all my children with one tap from the link in my WhatsApp or text message, straight to the payment page, without working out amounts.

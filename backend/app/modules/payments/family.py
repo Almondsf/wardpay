@@ -32,7 +32,8 @@ from app.modules.schools.models import Arm, ClassLevel, FamilySplitRule, School,
 from app.modules.students.models import Enrollment, Guardian, GuardianStudent, Student, StudentStatus
 
 from .accounts import payment_account, require_payment_account
-from .checkout import checkout_email, new_reference
+from .checkout import checkout_charge, checkout_email, new_reference
+from .checkout_charges import ChargeRule, rule_for
 from .earmarks import Earmark, choose_from
 from .family_links import Resolved
 from .family_split import load_debts, split
@@ -64,6 +65,7 @@ class FamilyPage:
     card_payments: bool
     children: list[FamilyChild]
     split_rule: FamilySplitRule
+    checkout_charge: ChargeRule | None = None  # set when parents pay the provider's charge on top
 
 
 def _children(session: Session, guardian_id: uuid.UUID) -> list[Student]:
@@ -144,9 +146,11 @@ def family_page(session: Session, found: Resolved) -> FamilyPage:
         if ids
         else {}
     )
+    account = payment_account(session)
     page = FamilyPage(
         school_name=school.name,
-        card_payments=payment_account(session) is not None,
+        card_payments=account is not None,
+        checkout_charge=rule_for(account.gateway, school.checkout_charge_payer) if account else None,
         children=[
             FamilyChild(
                 s.id,
@@ -240,6 +244,7 @@ def start_checkout(
         family_link_id=found.link_id,
         gateway=account.gateway,
         amount_kobo=total,
+        charge_kobo=checkout_charge(session, found.school_id, account.gateway, total),
         email=checkout_email(guardian, school),
     )
     session.add(intent)
@@ -258,7 +263,7 @@ def start_checkout(
     settings = get_settings()
     checkout = get_gateway(account.gateway).initialize_payment(
         reference=intent.reference,
-        amount_kobo=total,
+        amount_kobo=total + intent.charge_kobo,
         email=intent.email,
         subaccount_code=account.subaccount_code,
         callback_url=f"{settings.frontend_url}{settings.payment_callback_path}",
@@ -276,6 +281,7 @@ def start_checkout(
         changes={
             "parent": found.guardian_id,
             "amount_kobo": total,
+            "charge_kobo": intent.charge_kobo,
             "reference": intent.reference,
             "children": [{"student": sid, "amount_kobo": amount, "for": fees} for sid, amount, fees in chosen],
             "shared_by": "school rule" if shared_by_rule else "parent",

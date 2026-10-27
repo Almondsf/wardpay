@@ -92,6 +92,18 @@ describe('family payment page', () => {
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('https://gateway.example/pay/SP1'));
   });
 
+  it('shows the payment charge on top when the school asks parents to pay it', async () => {
+    mockApi({
+      [`GET /api/v1/public/pay/${TOKEN}`]: () =>
+        json({ ...page, checkout_charge: { percent_bp: 150, flat_kobo: 10_000, flat_from_kobo: 250_000, cap_kobo: 200_000 } }),
+    });
+    renderPage();
+    const top = within(await screen.findByRole('region', { name: 'Pay for all your children' }));
+    expect(top.getByRole('button', { name: 'Pay ₦207,000.00' })).toBeInTheDocument(); // ₦205,000 + the ₦2,000 cap
+    expect(top.getByLabelText('Payment charge')).toHaveTextContent('Includes a ₦2,000.00 payment charge');
+    expect(top.getByLabelText('Payment charge')).toHaveTextContent('No charge if you transfer to your child’s own account number');
+  });
+
   it('shows how a different amount will be shared before paying it', async () => {
     const assign = vi.fn();
     vi.stubGlobal('location', { ...window.location, assign });

@@ -240,6 +240,11 @@ It is updated with every change that affects security.
   voids, its dates), enforced in the services under a row lock on the school. Only the proprietor
   (`books.reopen`) can re-open, with a reason; closings and re-openings are append-only and audited.
 
+## Online payment charges
+- Who pays the provider's charge on checkouts is a per-school setting only the proprietor can change
+  (audited). The charge is kept apart from the fees on the payment intent; a checkout is only recorded if the
+  gateway confirms exactly fees + charge, and the bills are credited with the fees only.
+
 ## Payment notifications
 - Webhooks are limited to 3,000 a minute per address (raised from 600 after the load test: Paystack sends a
   busy morning's transfers from a few addresses). Each is signature-checked and re-verified with the gateway;

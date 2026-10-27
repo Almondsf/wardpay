@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, status
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -48,6 +48,19 @@ class FamilyChildOut(BaseModel):
     plan_offers: list[PlanOfferOut] = Field(description="The school's instalment plans the parent can choose")
 
 
+class CheckoutChargeOut(BaseModel):
+    """The provider's charge, when the school has parents pay it on top: charge = gross - amount, where gross is
+    the smallest amount with gross - fee(gross) >= amount, and fee(g) = min(ceil(g * percent_bp / 10000) +
+    (flat_kobo if g >= flat_from_kobo else 0), cap_kobo)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    percent_bp: int
+    flat_kobo: int
+    flat_from_kobo: int
+    cap_kobo: int
+
+
 class FamilyPageOut(BaseModel):
     """No surnames: a forwarded link shows first names, classes and amounts only."""
 
@@ -55,6 +68,9 @@ class FamilyPageOut(BaseModel):
     card_payments: bool = Field(description="Whether the school takes card payments")
     min_part_kobo: int = Field(description="Smallest card payment per child (unless less is owed)")
     split_rule: FamilySplitRule = Field(description="How the school shares one amount between the children")
+    checkout_charge: CheckoutChargeOut | None = Field(
+        default=None, description="Paying online adds the provider's charge on top (the school's choice); null: no"
+    )
     children: list[FamilyChildOut]
 
 
@@ -98,7 +114,8 @@ class FamilySplitOut(BaseModel):
 
 class FamilyCheckoutOut(BaseModel):
     reference: str
-    amount_kobo: int
+    amount_kobo: int = Field(description="For the fees: what the bills are credited with")
+    charge_kobo: int = Field(description="The provider's charge paid on top (0 unless the school chose)")
     authorization_url: str
 
 
@@ -130,6 +147,7 @@ def page_out(page: family.FamilyPage) -> FamilyPageOut:
         card_payments=page.card_payments,
         min_part_kobo=family.MIN_PART_KOBO,
         split_rule=page.split_rule,
+        checkout_charge=CheckoutChargeOut.model_validate(page.checkout_charge) if page.checkout_charge else None,
         children=[
             FamilyChildOut(
                 student_id=c.student_id,
@@ -189,7 +207,10 @@ def family_checkout(
         parts = [(p.student_id, p.amount_kobo, p.fees) for p in body.items or []]
         intent = family.start_checkout(db, found, parts, meta)
     return FamilyCheckoutOut(
-        reference=intent.reference, amount_kobo=intent.amount_kobo, authorization_url=intent.authorization_url
+        reference=intent.reference,
+        amount_kobo=intent.amount_kobo,
+        charge_kobo=intent.charge_kobo,
+        authorization_url=intent.authorization_url,
     )
 
 
