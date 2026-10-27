@@ -6906,18 +6906,13 @@
           },
           "gateway": {
             "$ref": "#/components/schemas/GatewayCode"
-          },
-          "platform_fee_bp": {
-            "title": "Platform Fee Bp",
-            "type": "integer"
           }
         },
         "required": [
           "gateway",
           "bank_name",
           "account_number_last4",
-          "account_name",
-          "platform_fee_bp"
+          "account_name"
         ],
         "title": "PaymentAccountOut",
         "type": "object"

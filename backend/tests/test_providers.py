@@ -67,7 +67,6 @@ def test_checkout_is_a_destination_charge_with_the_platform_fee(monkeypatch):
         callback_url="https://app.test/pay/complete",
         subaccount_code="acct_school",
         description="School fees",
-        platform_fee_bp=100,
     )
     assert checkout == Checkout("https://checkout.bachs.io/c/x", "chk_9")
     [request] = calls
@@ -75,7 +74,7 @@ def test_checkout_is_a_destination_charge_with_the_platform_fee(monkeypatch):
     assert request.headers["authorization"] == "Bearer sk_sandbox_abc"
     body = json.loads(request.content)
     assert body["pricing"] == {"currency": "NGN", "amount": "68000.00", "price_type": "fixed"}
-    assert body["transfer_data"] == {"destination": "acct_school"} and body["platform_fee"] == "680.00"
+    assert body["transfer_data"] == {"destination": "acct_school"} and "platform_fee" not in body  # WardPay takes none
     assert body["reference"] == "SPABC" and body["success_url"] == "https://app.test/pay/complete?reference=SPABC"
     assert bachs.BachsGateway(secret_key="sk_live_x").api == "https://api.bachs.io"
 
@@ -172,7 +171,7 @@ def on_bachs(world):
             SchoolPaymentAccount(
                 school_id=world["school"].id, gateway=GatewayCode.BACHS, subaccount_code="acct_school",
                 bank_code="", bank_name="Set up with Bachs", account_number="", account_number_last4="",
-                account_name="School", platform_fee_bp=100,
+                account_name="School",
             )
         )  # fmt: skip
 
@@ -213,7 +212,7 @@ async def test_checkouts_follow_the_switch_and_fall_back(client, world, db, both
     on_bachs(world)
     link = await pay_link(client, world)
     assert link["authorization_url"].startswith("https://checkout.bachs.io/")
-    assert both[-1]["subaccount_code"] == "acct_school" and both[-1]["platform_fee_bp"] == 100
+    assert both[-1]["subaccount_code"] == "acct_school" and "platform_fee_bp" not in both[-1]
     scope_to_school(db, world["school"].id)
     intent = db.scalar(select(PaymentIntent).where(PaymentIntent.reference == link["reference"]))
     assert intent.gateway == GatewayCode.BACHS and intent.provider_reference.startswith("chk_")

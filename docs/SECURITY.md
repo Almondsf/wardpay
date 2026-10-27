@@ -119,7 +119,7 @@ It is updated with every change that affects security.
 
 ## Payments
 - The platform never holds school money: payments settle to each school's own
-  account via a gateway subaccount, and the platform fee is taken by the split.
+  account via a gateway subaccount. WardPay takes no share of it (0% split).
 - Card data never touches the system (hosted checkout). Stored gateway payloads
   are redacted, and outbound gateway calls are logged without keys, card
   authorisations or account numbers. SMS providers' replies are logged without

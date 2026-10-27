@@ -170,9 +170,12 @@ class PaymentGateway(Protocol):
 
     def resolve_account(self, *, bank_code: str, account_number: str) -> ResolvedAccount: ...
 
-    def create_subaccount(
-        self, *, business_name: str, bank_code: str, account_number: str, platform_fee_bp: int
-    ) -> Subaccount: ...
+    def create_subaccount(self, *, business_name: str, bank_code: str, account_number: str) -> Subaccount: ...
+
+    def clear_platform_share(self, subaccount_code: str) -> None:
+        """Make sure the provider keeps nothing of the school's payments for the platform (owner, 2026-10-27:
+        WardPay earns only from its bills to schools). For subaccounts made before that."""
+        ...
 
     def create_virtual_account(self, *, customer: CustomerDetails, subaccount_code: str) -> IssuedVirtualAccount: ...
 
@@ -185,7 +188,6 @@ class PaymentGateway(Protocol):
         callback_url: str,
         subaccount_code: str | None,
         description: str,
-        platform_fee_bp: int = 0,
     ) -> Checkout:
         """A hosted checkout. With a subaccount the money settles to that school; with None (the
         school paying its own subscription) it settles to the platform's own balance."""

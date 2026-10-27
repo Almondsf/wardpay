@@ -6778,8 +6778,6 @@ export interface components {
             /** Bank Name */
             bank_name: string;
             gateway: components["schemas"]["GatewayCode"];
-            /** Platform Fee Bp */
-            platform_fee_bp: number;
         };
         /**
          * PaymentKind

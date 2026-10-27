@@ -1,7 +1,8 @@
 """
 Paystack (https://paystack.com/docs/api/). Amounts are already in kobo.
 
-- Subaccount: the school's bank account; `percentage_charge` is the platform's share.
+- Subaccount: the school's bank account. WardPay takes no share of school payments (`percentage_charge` 0;
+  owner, 2026-10-27: WardPay earns only from its bills to schools).
 - Dedicated virtual accounts (DVA): one per student ("customer"), linked to the
   school's subaccount so transfers settle to the school. Paystack may require
   extra business approval and customer identification for DVAs (PLAN §3.2).
@@ -131,9 +132,7 @@ class PaystackGateway:
         data = self._request("GET", "/bank/resolve", params={"account_number": account_number, "bank_code": bank_code})
         return ResolvedAccount(account_number=data["account_number"], account_name=data["account_name"])
 
-    def create_subaccount(
-        self, *, business_name: str, bank_code: str, account_number: str, platform_fee_bp: int
-    ) -> Subaccount:
+    def create_subaccount(self, *, business_name: str, bank_code: str, account_number: str) -> Subaccount:
         data = self._request(
             "POST",
             "/subaccount",
@@ -141,10 +140,13 @@ class PaystackGateway:
                 "business_name": business_name,
                 "settlement_bank": bank_code,
                 "account_number": account_number,
-                "percentage_charge": platform_fee_bp / 100,
+                "percentage_charge": 0,
             },
         )
         return Subaccount(code=data["subaccount_code"])
+
+    def clear_platform_share(self, subaccount_code: str) -> None:
+        self._request("PUT", f"/subaccount/{subaccount_code}", json={"percentage_charge": 0})
 
     def create_virtual_account(self, *, customer: CustomerDetails, subaccount_code: str) -> IssuedVirtualAccount:
         created = self._request(
@@ -183,7 +185,6 @@ class PaystackGateway:
         callback_url: str,
         subaccount_code: str | None,
         description: str,
-        platform_fee_bp: int = 0,  # set on the subaccount instead
     ) -> Checkout:
         split = {"subaccount": subaccount_code, "bearer": "subaccount"} if subaccount_code else {}
         data = self._request(

@@ -778,6 +778,7 @@ const SECTIONS = [
 ];
 
 const CHANGES = [
+  ['27 Oct 2026', 'WardPay no longer takes 1% of payments; the school’s bank receives everything except the payment provider’s own charge.'],
   ['27 Oct 2026', 'Schools choose who pays the charge on online payments: the school, or the parent on top (shown before paying).'],
   ['27 Oct 2026', 'Parents with children at several branches of a group sign in once and open each branch from their home page.'],
   ['27 Oct 2026', 'All branches: head office sees every branch’s money side by side, with totals and an Excel download.'],

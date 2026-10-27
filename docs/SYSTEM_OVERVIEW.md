@@ -474,10 +474,13 @@ Module: `app/modules/payments`.
 **Money never touches the platform.** Each school connects its own bank account
 (`PUT /payment-settings`, proprietor only). The gateway confirms the account
 name and creates a **subaccount**. Every card payment and every transfer into a
-student's account number is split by the gateway: the school's share settles
-to the school, and the platform fee (`PLATFORM_FEE_BP`, recorded per school)
-settles to us. The school bears the gateway's own charges, unless it chooses otherwise
-for online checkouts (below).
+student's account number settles to the school through its subaccount. **WardPay takes
+no share of school payments** (owner, 2026-10-27: "remove the WardPay 1%... we'll collect
+our money strictly by billing the school"): subaccounts are made with a 0% platform share,
+and `python -m app.cli clear-platform-fee` sets older ones to 0% at the provider
+(`clear_platform_share` on each gateway; idempotent, audited). WardPay's income is only its
+termly bills to schools (section 15). The school bears the gateway's own charges, unless it
+chooses otherwise for online checkouts (below).
 
 **Who pays the charge on online checkouts** (`checkout_charges.py`; owner, 2026-10-27, each
 school chooses; `schools.checkout_charge_payer`, `GET/PUT /payment-settings/checkout-charges`,
@@ -816,8 +819,8 @@ students' account numbers keep arriving from the gateway that issued them.
 2026-10-20, because only Paystack gives each pupil their own account number). A school is a Bachs *connected account*, set up on
 Bachs' hosted onboarding (`POST /payment-settings/bachs/onboarding` returns the link;
 Bachs collects the business, identity and payout bank details). Checkouts are checkout
-sessions charged as *destination charges* to the school's account with our
-`platform_fee`, so the platform never holds the money. Bachs gives a business one fixed
+sessions charged as *destination charges* to the school's account (no platform fee),
+so the platform never holds the money. Bachs gives a business one fixed
 account number, not one per customer, so it **can't issue students' own account numbers**
 (`supports_virtual_accounts = False`); those come from Paystack. Its webhook
 (`POST /webhooks/bachs`, HMAC-SHA256 of `timestamp.body`, 5-minute window) carries our
@@ -1096,8 +1099,8 @@ per instalment plan made (below). Those are the only charges (owner, 2026-10-27:
 the old licence fee is gone entirely, its line kind and test lines included). One plan
 is the default (partial unique index); a school can be moved to another
 (`schools.plan_id`). The migration seeds "Standard" with placeholder prices for
-the owner to set. The gateway percentage (`PLATFORM_FEE_BP`) still comes off
-each parent payment through the split.
+the owner to set. Nothing comes off parents' payments for WardPay (the old 1% split was
+removed on 2026-10-27).
 
 **Subscription billing (`billing.py`).** "Bill this term"
 (`POST /platform/billing/generate`, with a dry run) bills every **active**

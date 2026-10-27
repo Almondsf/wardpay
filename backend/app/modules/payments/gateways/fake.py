@@ -96,11 +96,12 @@ class FakeGateway:
             raise GatewayRejected("Fake gateway: that isn't a 10-digit account number.")
         return ResolvedAccount(account_number=account_number, account_name="DEMO SCHOOL LTD")
 
-    def create_subaccount(
-        self, *, business_name: str, bank_code: str, account_number: str, platform_fee_bp: int
-    ) -> Subaccount:
+    def create_subaccount(self, *, business_name: str, bank_code: str, account_number: str) -> Subaccount:
         self._check()
         return Subaccount(code=f"FAKE_SUB_{secrets.token_hex(4).upper()}")
+
+    def clear_platform_share(self, subaccount_code: str) -> None:
+        self._check()
 
     def create_virtual_account(self, *, customer: CustomerDetails, subaccount_code: str) -> IssuedVirtualAccount:
         self._check()
@@ -122,7 +123,6 @@ class FakeGateway:
         callback_url: str,
         subaccount_code: str | None,
         description: str,
-        platform_fee_bp: int = 0,  # set on the subaccount instead
     ) -> Checkout:
         self._check()
         self.state.transactions[reference] = _Transaction(reference, amount_kobo, TransactionStatus.PENDING, "card")

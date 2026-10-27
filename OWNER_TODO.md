@@ -6,6 +6,13 @@ date as the build goes on; newest additions are marked _(new)_.
 
 Last updated: 2026-10-24 (one real payment, end to end)
 
+## _(new)_ WardPay's 1% is gone (2026-10-27)
+
+- [ ] After the next deploy, run **`python -m app.cli clear-platform-fee`** once on the server (Render: the
+      API service's Shell tab). It tells Paystack to give WardPay 0% on every school's subaccount made
+      before the change, and prints how many it did. Safe to run again. New schools are already at 0%.
+- [ ] You can delete the `PLATFORM_FEE_BP` variable from Render; it isn't used any more.
+
 ## _(new)_ Hosting for real schools (2026-10-26, from the 10,000-pupil load test)
 
 - [ ] Before the first school relies on WardPay: a **paid Postgres** (the free one is deleted after 30 days,

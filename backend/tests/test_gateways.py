@@ -138,7 +138,7 @@ def test_paystack_checkout_splits_to_the_school_or_settles_to_the_platform(monke
 def test_paystack_subaccount_and_virtual_account(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/subaccount":
-            assert json.loads(request.content)["percentage_charge"] == 1.5
+            assert json.loads(request.content)["percentage_charge"] == 0  # WardPay takes no share
             return httpx.Response(200, json={"status": True, "data": {"subaccount_code": "ACCT_x"}})
         if request.url.path == "/customer":
             return httpx.Response(200, json={"status": True, "data": {"customer_code": "CUS_1"}})
@@ -158,13 +158,25 @@ def test_paystack_subaccount_and_virtual_account(monkeypatch):
 
     mock_api(monkeypatch, paystack, handler)
     gateway = paystack.PaystackGateway(secret_key=PAYSTACK_KEY)
-    sub = gateway.create_subaccount(
-        business_name="X", bank_code="058", account_number="0123456789", platform_fee_bp=150
-    )
+    sub = gateway.create_subaccount(business_name="X", bank_code="058", account_number="0123456789")
     account = gateway.create_virtual_account(
         customer=CustomerDetails("s1", "Ada", "Obi", "p@example.com", "+2348031234567"), subaccount_code=sub.code
     )
     assert (account.account_number, account.bank_name) == ("9930000001", "Wema Bank")
+
+
+def test_paystack_clears_an_old_subaccounts_platform_share(monkeypatch):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={"status": True, "data": {"subaccount_code": "ACCT_old"}})
+
+    mock_api(monkeypatch, paystack, handler)
+    paystack.PaystackGateway(secret_key=PAYSTACK_KEY).clear_platform_share("ACCT_old")
+    [request] = calls
+    assert (request.method, request.url.path) == ("PUT", "/subaccount/ACCT_old")
+    assert json.loads(request.content) == {"percentage_charge": 0}
 
 
 @pytest.mark.parametrize(("status_code", "error"), [(400, GatewayRejected), (503, ServiceUnavailable)])

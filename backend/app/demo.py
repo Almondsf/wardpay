@@ -410,7 +410,6 @@ def _fake_payments_setup(session: Session, school: School) -> None:
             account_number="0123456789",
             account_number_last4="6789",
             account_name="DEMO MODEL COLLEGE",
-            platform_fee_bp=100,
         )
     )
     students = session.execute(

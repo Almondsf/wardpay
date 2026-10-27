@@ -59,8 +59,6 @@ export function PaymentSettings() {
                 </dd>
                 <dt>Provider</dt>
                 <dd>{GATEWAY_NAMES[account.gateway]}</dd>
-                <dt>Platform fee</dt>
-                <dd>{account.platform_fee_bp / 100}% of each payment</dd>
               </dl>
               {settings.data.accounts.length > 1 && (
                 <p className="small muted">

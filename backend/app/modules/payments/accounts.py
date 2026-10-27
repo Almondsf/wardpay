@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core import outbox
-from app.core.config import get_settings
 from app.core.errors import Conflict, DomainError
 from app.modules.accounts.deps import StaffContext
 from app.modules.audit.models import AuditAction
@@ -90,12 +89,8 @@ def set_up_payment_account(
     resolved = provider.resolve_account(bank_code=bank_code, account_number=account_number)
     bank_name = next((b.name for b in provider.list_banks() if b.code == bank_code), bank_code)
     school = session.get(School, ctx.school_id)
-    fee_bp = get_settings().platform_fee_bp
     subaccount = provider.create_subaccount(
-        business_name=school.name if school else "School",
-        bank_code=bank_code,
-        account_number=account_number,
-        platform_fee_bp=fee_bp,
+        business_name=school.name if school else "School", bank_code=bank_code, account_number=account_number
     )
     account = payment_account(session, gateway) or SchoolPaymentAccount(id=uuid.uuid4())
     before = (
@@ -106,7 +101,7 @@ def set_up_payment_account(
     account.gateway, account.subaccount_code = gateway, subaccount.code
     account.bank_code, account.bank_name = bank_code, bank_name
     account.account_number, account.account_number_last4 = account_number, account_number[-4:]
-    account.account_name, account.platform_fee_bp, account.set_up_by = resolved.account_name, fee_bp, ctx.user.id
+    account.account_name, account.set_up_by = resolved.account_name, ctx.user.id
     session.add(account)
     record(
         session,
@@ -121,7 +116,6 @@ def set_up_payment_account(
             "bank": bank_name,
             "last4": account_number[-4:],
             "account_name": resolved.account_name,
-            "platform_fee_bp": fee_bp,
         },
     )
     session.commit()
@@ -156,7 +150,6 @@ def start_bachs_onboarding(session: Session, ctx: StaffContext, *, return_url: s
             account_number="",
             account_number_last4="",
             account_name=school.name if school else "",
-            platform_fee_bp=get_settings().platform_fee_bp,
             set_up_by=ctx.user.id,
         )
         session.add(account)

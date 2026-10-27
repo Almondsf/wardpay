@@ -42,6 +42,7 @@ The roadmap (PLAN.md chunks 0 to 10) is finished. Since then, at the owner's req
 | 22 Oct | **Parent portal redesign**: one page (total at the top, each child with owed, Pay online, account number and fees; pay-all at the bottom), history and settings a tap away; demo code-fill button on laptops | `parent/ParentApp.tsx`, `parent/ParentLogin.tsx` |
 | 22 Oct | **Fees in reminders**: `{fees}` in new-bill notices and reminders (fees with money left, biggest first, max four then "N more"); WhatsApp templates get it as their last parameter | `notifications/service.py` (`fees_phrase`), `templates.py` |
 | 22 Oct | **SMS alphabet**: every text is converted to GSM-7 (NGN for ₦, plain quotes/dashes, emoji dropped) so it isn't billed as Unicode (7 pages became 3); wording preview shows SMS pages | `notifications/sms.py` (`to_gsm`, `sms_pages`) |
+| 27 Oct | **WardPay's 1% split removed**: WardPay takes nothing from school payments and earns only from its bills; subaccounts made at 0%, `python -m app.cli clear-platform-fee` sets old ones to 0% | `payments/gateways/*`, `app/cli.py` |
 | 27 Oct | **Who pays the charge on online checkouts**: each school chooses (Payment settings): the school (default) or the parent on top, grossed up so the school gets the fees in full; parents see it before paying; schools are advised to have parents pay into the pupils' account numbers | `payments/checkout_charges.py`, `lib/checkoutCharge.tsx` |
 | 27 Oct | **School groups, step 3: parents across branches**: one sign-in when all a parent's schools are branches of one group, an "At other branches" card with what's owed, switch without a new code; paying stays per branch (works whether branches share a bank account or not) | `parents/branches.py`, `parent/ParentApp.tsx` |
 | 27 Oct | **School groups, step 2: All branches** for head office (every branch's money side by side, the group's totals, 30-day takings, Excel); figures only, one query per figure whatever the number of branches | `reports/group.py`, `accounts/deps.py` (`require_head_office`), `console/GroupFigures.tsx` |
@@ -138,6 +139,9 @@ These are standing rules from the owner. CLAUDE.md has the project rules; these 
 - 2026-10-27 **School groups** (option A: each branch stays its own school, a group above them). Bank account:
   the group chooses (shared or one per branch; comes with step 3). Who works across branches: the owner and a
   central bursar only. Billing: each branch billed as now. Head office seeing each branch's data: approved.
+  Owner, same day: **no 1% for WardPay** on school payments; WardPay is paid strictly by billing schools,
+  and the next job is collecting those bills effectively. Automatic deduction of WardPay's fee through Paystack
+  splits (capped per pupil per term) was considered and declined.
   Owner, same day: the provider's charge on online checkouts: **each school chooses** whether it bears it (the
   default) or parents pay it on top ("option 3"); schools are to be advised to have parents pay by transfer
   (into the pupils' account numbers, the cheapest; a transfer on Paystack's checkout page costs as much as a card).
@@ -276,7 +280,7 @@ with SessionLocal() as s:
     scope_to_school(s, school_id)
     s.add(SchoolPaymentAccount(id=uuid.uuid4(), gateway=GatewayCode.PAYSTACK, subaccount_code="ACCT_jrloeq5ijkp1lqc",
         bank_code="057", bank_name="Zenith Bank", account_number="0000000000", account_number_last4="0000",
-        account_name="Test", platform_fee_bp=100))
+        account_name="Test"))
     s.commit()
 # EOF
 ```

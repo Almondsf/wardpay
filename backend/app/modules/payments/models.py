@@ -68,7 +68,6 @@ class SchoolPaymentAccount(TenantMixin, UUIDPrimaryKey, Timestamped, Base):
     account_number: Mapped[str] = mapped_column(EncryptedString)
     account_number_last4: Mapped[str] = mapped_column(String(4))
     account_name: Mapped[str] = mapped_column(String(150))
-    platform_fee_bp: Mapped[int] = mapped_column(SmallInteger)
     set_up_by: Mapped[uuid.UUID | None] = mapped_column()
     # When WardPay last asked the gateway what it paid out (payments/settlements.py)
     settlements_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

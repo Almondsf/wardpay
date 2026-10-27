@@ -268,7 +268,6 @@ def start_checkout(
         subaccount_code=account.subaccount_code,
         callback_url=f"{settings.frontend_url}{settings.payment_callback_path}",
         description=f"School fees at {school.name}: {len(chosen)} {'child' if len(chosen) == 1 else 'children'}",
-        platform_fee_bp=account.platform_fee_bp,
     )
     intent.authorization_url, intent.provider_reference = checkout.authorization_url, checkout.provider_reference
     record(

@@ -114,8 +114,6 @@ class Settings(BaseSettings):
     bachs_secret_key: str = ""
     # The signing secret of our webhook endpoint in the Bachs developer portal
     bachs_webhook_secret: str = ""
-    # Platform fee taken through the gateway split, in basis points (100 = 1%). Schools can be set individually.
-    platform_fee_bp: int = Field(default=100, ge=0, le=2000)
     # Where the gateway sends parents after a card payment (the web app verifies and shows the result)
     payment_callback_path: str = "/pay/complete"
     # A parent's family payment link (in bills and reminders) works this long, then a fresh one is made

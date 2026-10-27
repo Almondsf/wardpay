@@ -3,6 +3,7 @@ Operator commands.
 
     python -m app.cli create-platform-admin --email ops@example.com --name "Ops Person"
     python -m app.cli seed-demo [--reset] [--bare]   (development and browser tests only)
+    python -m app.cli clear-platform-fee              (once: subaccounts made before WardPay stopped taking 1%)
 
 Prints a one-time set-password link for the new admin (there's no one to
 email an invite from yet). Treat the link like a password.
@@ -51,6 +52,43 @@ def create_platform_admin(email: str, name: str) -> str:
     return f"{get_settings().frontend_url}/console/set-password#token={token}"
 
 
+def clear_platform_fee() -> tuple[int, list[str]]:
+    """
+    Set every school's subaccount at the payment provider to keep nothing for WardPay (owner, 2026-10-27: WardPay
+    earns only from its bills to schools). Safe to run again. One provider call per school, by necessity (each
+    subaccount is its own record at the provider); the database is read once. Returns (cleared, failures).
+    """
+    from app.modules.payments.gateways import GatewayError, enabled_gateways, get_gateway
+    from app.modules.payments.models import SchoolPaymentAccount
+
+    load_all_models()
+    with SessionLocal() as session:
+        scope_platform_wide(session)
+        accounts = session.execute(
+            select(
+                SchoolPaymentAccount.gateway, SchoolPaymentAccount.subaccount_code, SchoolPaymentAccount.school_id
+            ).where(SchoolPaymentAccount.gateway.in_(enabled_gateways()))
+        ).all()
+    cleared, failed = 0, []
+    for gateway, code, school_id in accounts:
+        try:
+            get_gateway(gateway).clear_platform_share(code)
+            cleared += 1
+        except GatewayError as e:
+            failed.append(f"{gateway} {code} (school {school_id}): {e}")
+    with SessionLocal() as session:
+        scope_platform_wide(session)
+        record(
+            session,
+            AuditAction.PLATFORM_FEE_CLEARED,
+            school_id=None,
+            actor=Actor.system("cli"),
+            changes={"cleared": cleared, "failed": len(failed)},
+        )
+        session.commit()
+    return cleared, failed
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -61,6 +99,9 @@ def main(argv: list[str] | None = None) -> None:
     seed.add_argument("--mfa-secret", default="JBSWY3DPEHPK3PXP", help="Base32 TOTP secret for MFA users")
     seed.add_argument("--reset", action="store_true", help="Replace an existing demo school")
     seed.add_argument("--bare", action="store_true", help="Only the school and students, no bills or payments yet")
+    commands.add_parser(
+        "clear-platform-fee", help="Set every school's provider subaccount to give WardPay 0% (run once after deploy)"
+    )
     args = parser.parse_args(argv)
     if args.command == "seed-demo":
         demo.seed_demo(args.mfa_secret, args.reset, bare=args.bare)
@@ -68,6 +109,11 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "create-platform-admin":
         link = create_platform_admin(args.email, args.name)
         sys.stdout.write(f"Platform admin created. Send them this one-time link to set a password:\n{link}\n")
+    elif args.command == "clear-platform-fee":
+        cleared, failed = clear_platform_fee()
+        sys.stdout.write(f"Subaccounts set to 0% for WardPay: {cleared}\n")
+        for line in failed:
+            sys.stdout.write(f"  Not done, run it again: {line}\n")
 
 
 if __name__ == "__main__":

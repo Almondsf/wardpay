@@ -143,10 +143,11 @@ class BachsGateway:
     def resolve_account(self, *, bank_code: str, account_number: str) -> ResolvedAccount:
         raise GatewayRejected(NOT_THROUGH_BACHS)
 
-    def create_subaccount(
-        self, *, business_name: str, bank_code: str, account_number: str, platform_fee_bp: int
-    ) -> Subaccount:
+    def create_subaccount(self, *, business_name: str, bank_code: str, account_number: str) -> Subaccount:
         raise GatewayRejected(NOT_THROUGH_BACHS)
+
+    def clear_platform_share(self, subaccount_code: str) -> None:
+        return None  # Bachs takes a platform fee only when one is asked for at checkout, and none is
 
     def create_virtual_account(self, *, customer: CustomerDetails, subaccount_code: str) -> IssuedVirtualAccount:
         raise GatewayRejected("Bachs can't give each pupil their own account number.")
@@ -162,7 +163,6 @@ class BachsGateway:
         callback_url: str,
         subaccount_code: str | None,
         description: str,
-        platform_fee_bp: int = 0,
     ) -> Checkout:
         # Bachs appends its checkout_id; our reference lets the return page find the payment
         back = f"{callback_url}{'&' if '?' in callback_url else '?'}reference={reference}"
@@ -175,14 +175,7 @@ class BachsGateway:
                 "reference": reference,
                 "success_url": back,
                 "cancel_url": back,
-                **(
-                    {
-                        "transfer_data": {"destination": subaccount_code},
-                        "platform_fee": _naira(amount_kobo * platform_fee_bp // 10_000),
-                    }
-                    if subaccount_code
-                    else {}
-                ),
+                **({"transfer_data": {"destination": subaccount_code}} if subaccount_code else {}),
                 "metadata": {"description": description[:200]},
             },
         )

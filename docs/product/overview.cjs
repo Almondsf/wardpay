@@ -208,6 +208,7 @@ const COMING = [
 
 // Newest first. Add a line whenever something ships.
 const CHANGES = [
+  ['27 Oct 2026', 'WardPay takes nothing from parents’ payments: it is paid only through its termly bill to the school'],
   ['27 Oct 2026', 'Each school chooses whether it or the parent pays the charge on online payments'],
   ['27 Oct 2026', 'Parents with children at several branches sign in once and see what is owed at each branch'],
   ['27 Oct 2026', 'School groups: an owner with several branches signs in once, switches branch, and sees every branch’s money side by side'],

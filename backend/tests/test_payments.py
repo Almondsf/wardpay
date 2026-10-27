@@ -46,7 +46,6 @@ def connect_gateway(school):
                 account_number="0123456789",
                 account_number_last4="6789",
                 account_name="DEMO SCHOOL LTD",
-                platform_fee_bp=100,
             )
         )
 
@@ -469,7 +468,6 @@ async def test_only_proprietor_connects_the_bank_account(client, db):
         "bank_name": "GTBank",
         "account_number_last4": "6789",
         "account_name": "DEMO SCHOOL LTD",
-        "platform_fee_bp": 100,
     }
     disabled = await client.put(
         "/api/v1/payment-settings", headers=headers_for(db, owner), json={**body, "gateway": "paystack"}
@@ -533,3 +531,18 @@ async def test_cannot_touch_another_schools_payments(client, world, db):
         assert response.status_code == 404, (url, response.text)
     scope_to_school(db, world["school"].id)
     assert db.scalars(select(VirtualAccount)).all() == []
+
+
+def test_clearing_the_platform_fee_touches_every_school_once(db, monkeypatch):
+    """Owner, 2026-10-27: WardPay takes no share of school payments. Old subaccounts are set to 0% by a command."""
+    from app import cli
+    from app.modules.payments.gateways import FakeGateway
+
+    cleared: list[str] = []
+    monkeypatch.setattr(FakeGateway, "clear_platform_share", lambda self, code: cleared.append(code))
+    first, second = make_school(db, "One"), make_school(db, "Two")
+    db.commit()
+    connect_gateway(first)
+    connect_gateway(second)
+    count, failed = cli.clear_platform_fee()
+    assert failed == [] and count >= 2 and cleared.count("FAKE_SUB_1") >= 2

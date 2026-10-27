@@ -67,7 +67,6 @@ class PaymentAccountOut(BaseModel):
     bank_name: str
     account_number_last4: str
     account_name: str
-    platform_fee_bp: int
 
 
 class PaymentAccountIn(BaseModel):

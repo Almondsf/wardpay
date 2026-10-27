@@ -2,7 +2,7 @@
 Flutterwave v3 (https://developer.flutterwave.com/docs). Amounts are in naira,
 so they're converted to and from kobo here.
 
-- Subaccount: the school's bank account; `split_value` is the platform's share.
+- Subaccount: the school's bank account. WardPay takes no share of school payments (`split_value` 0).
 - Permanent virtual accounts need the customer's BVN on Flutterwave, which we
   don't collect (NDPA minimisation). Until that's settled (PLAN §3.2),
   `create_virtual_account` refuses and schools on Flutterwave use card checkout.
@@ -87,9 +87,7 @@ class FlutterwaveGateway:
         )
         return ResolvedAccount(account_number=data["account_number"], account_name=data["account_name"])
 
-    def create_subaccount(
-        self, *, business_name: str, bank_code: str, account_number: str, platform_fee_bp: int
-    ) -> Subaccount:
+    def create_subaccount(self, *, business_name: str, bank_code: str, account_number: str) -> Subaccount:
         data = self._request(
             "POST",
             "/subaccounts",
@@ -99,10 +97,13 @@ class FlutterwaveGateway:
                 "business_name": business_name,
                 "country": "NG",
                 "split_type": "percentage",
-                "split_value": platform_fee_bp / 10_000,
+                "split_value": 0,
             },
         )
         return Subaccount(code=str(data["subaccount_id"]))
+
+    def clear_platform_share(self, subaccount_code: str) -> None:
+        self._request("PUT", f"/subaccounts/{subaccount_code}", json={"split_type": "percentage", "split_value": 0})
 
     def create_virtual_account(self, *, customer: CustomerDetails, subaccount_code: str) -> IssuedVirtualAccount:
         raise GatewayRejected(
@@ -119,7 +120,6 @@ class FlutterwaveGateway:
         callback_url: str,
         subaccount_code: str | None,
         description: str,
-        platform_fee_bp: int = 0,  # set on the subaccount instead
     ) -> Checkout:
         data = self._request(
             "POST",
