@@ -489,7 +489,10 @@ def family_checkout(
         parts = [(p.student_id, p.amount_kobo, p.fees) for p in body.items or []]
         intent = family.start_checkout(db, found, parts, ctx.meta)
     return FamilyCheckoutOut(
-        reference=intent.reference, amount_kobo=intent.amount_kobo, authorization_url=intent.authorization_url
+        reference=intent.reference,
+        amount_kobo=intent.amount_kobo,
+        charge_kobo=intent.charge_kobo,
+        authorization_url=intent.authorization_url,
     )
 
 

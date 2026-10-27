@@ -138,3 +138,13 @@ async def test_only_the_proprietor_chooses_and_it_is_recorded(client, world, db)
     entry = db.scalar(select(AuditLog).where(AuditLog.action == AuditAction.CHECKOUT_CHARGE_PAYER_CHANGED.value))
     assert entry is not None and entry.changes == {"before": "school", "after": "parent"}
     assert (await client.put(SETTING, headers=world["bursar"], json={"payer": "nobody"})).status_code in (403, 422)
+
+
+async def test_pay_for_all_in_the_portal_carries_the_charge(client, world, db):
+    await generate(client, world)
+    await choose(client, db, world, "parent")
+    headers = bearer(await sign_in(client))
+    assert (await client.get("/api/v1/parent/home", headers=headers)).json()["checkout_charge"]["cap_kobo"] == 200_000
+    started = await client.post("/api/v1/parent/family/checkout", headers=headers, json={"total_kobo": 100_000 * NAIRA})
+    assert started.status_code == 201, started.text
+    assert started.json()["amount_kobo"] == 100_000 * NAIRA and started.json()["charge_kobo"] == 162_437
