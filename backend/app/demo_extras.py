@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import LAGOS, lagos_today
 from app.core.crypto import blind_index
 from app.core.db import SessionLocal
-from app.core.errors import DomainError
+from app.core.errors import Conflict, DomainError
 from app.core.http import RequestMeta
 from app.core.tenancy import scope_platform_wide, scope_to_school
 from app.modules.accounting import periods
@@ -437,15 +437,18 @@ def _marked_payments(session: Session, bursar: StaffContext) -> None:
         .where(
             Payment.kind == PaymentKind.RECEIPT,
             Payment.method.in_([PaymentMethod.BANK_TRANSFER, PaymentMethod.VIRTUAL_ACCOUNT]),
-            Payment.amount_kobo <= 15_000 * 100,
         )
         .order_by(Payment.received_at.desc())
-        .limit(3)
+        .limit(25)
     ).all()
-    for payment, fees in zip(recent, (["PTA levy"], ["Development levy", "PTA levy"], ["School bus"]), strict=False):
+    wanted = [["PTA levy"], ["Development levy", "PTA levy"], ["PTA levy"]]
+    for payment in recent:  # a payment whose bill has nothing open on those fees is refused: try the next
+        if not wanted:
+            break
         try:
-            earmarks.mark_payment(session, bursar, payment.id, fees)
-        except DomainError:  # that pupil's bill doesn't have the fee: skip it
+            earmarks.mark_payment(session, bursar, payment.id, wanted[0])
+            wanted.pop(0)
+        except (DomainError, Conflict):
             session.rollback()
 
 
