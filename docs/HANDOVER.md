@@ -188,10 +188,10 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
   on the live site as it is (known passwords incl. a platform admin, real texts to made-up numbers, real
   Paystack calls). The safe options were a separate demo deployment (fake gateway, its own free DB) or a
   locked-down `is_demo` school with random credentials.
-- **No bank-statement matching or "I have paid" screenshots** (owner, 2026-10-29: "just scrap the feature").
+- **Bank-statement matching and "I have paid" screenshots: parked** (owner, 2026-10-29: "just scrap the feature").
   Proposed: upload the school's bank statement and match lines to families (by POS-slip session ID, amount and
   time), with parents sending proof of payment. Dropped; payments are identified by pupils' own account numbers
-  and the payment links. Don't propose it again.
+  and the payment links. The owner added: "it can still be suggested later", so raise it again if it becomes clearly worth it (e.g. a pilot school that can't get pupils' account numbers).
 - **No second, cheaper virtual-account provider** (owner, 2026-10-25): Fincra, Figo and the like need
   BVN verification for each virtual account, which WardPay doesn't want to collect. Stay on Paystack's
   Dedicated NUBAN for pupils' account numbers; don't propose these providers again.
