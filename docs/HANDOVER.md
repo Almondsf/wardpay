@@ -192,6 +192,11 @@ about ₦6–9 a page, WhatsApp utility about $0.0067 and marketing about $0.051
   Proposed: upload the school's bank statement and match lines to families (by POS-slip session ID, amount and
   time), with parents sending proof of payment. Dropped; payments are identified by pupils' own account numbers
   and the payment links. The owner added: "it can still be suggested later", so raise it again if it becomes clearly worth it (e.g. a pilot school that can't get pupils' account numbers).
+- **Paystack on pupils' account numbers** (their support, 2026-10-30): "the details of parents or guardians can
+  be used to create these DVAs" (asked because pupils under 16 have no BVN or NIN). Today `provision_virtual_accounts`
+  makes a Paystack customer with the **pupil's** name and the primary parent's phone/email, and no BVN. Follow-up
+  questions sent by the owner (OWNER_TODO). If the parent's BVN is required: pass it straight to Paystack's customer
+  validation and never store it (NDPA; CLAUDE.md rule 7 already bars it from logs); needs the owner's decision first.
 - **No second, cheaper virtual-account provider** (owner, 2026-10-25): Fincra, Figo and the like need
   BVN verification for each virtual account, which WardPay doesn't want to collect. Stay on Paystack's
   Dedicated NUBAN for pupils' account numbers; don't propose these providers again.

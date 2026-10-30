@@ -84,6 +84,11 @@ anything that doesn't happen as described:
       _(new, 2026-10-27)_ Ask them too whether **schools may add the checkout charge for parents**
       (schools can now choose that under Payment settings; Paystack's own help page says charges can be
       passed to customers, but confirm it for schools before telling a school to switch it on).
+- [ ] _(new, 2026-10-30)_ **Paystack answered** (30 Oct): "the details of parents or guardians can be used to
+      create these DVAs". Unclear whether that means the parent's **BVN/NIN**. Reply asking: is the parent's BVN
+      (or NIN) required, or are name, phone and email enough; can one parent's details back several accounts
+      (one per child); what name shows to the payer (the child's or the parent's); the fee per transfer; and
+      the 1,000-account limit. If BVN is required, decide whether WardPay asks parents for it (see HANDOVER).
 - [x] **Provider decided: Paystack** (2026-10-20). Bachs is built in and can be switched on
       later from Platform → Providers (it needs its keys), but isn't configured. Reason: Bachs
       can't give each pupil their own account number.
