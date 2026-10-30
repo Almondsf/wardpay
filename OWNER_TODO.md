@@ -89,6 +89,8 @@ anything that doesn't happen as described:
       (or NIN) required, or are name, phone and email enough; can one parent's details back several accounts
       (one per child); what name shows to the payer (the child's or the parent's); the fee per transfer; and
       the 1,000-account limit. If BVN is required, decide whether WardPay asks parents for it (see HANDOVER).
+      _(new, 2026-10-30)_ Owner: parents would give their **NIN** but are wary of BVN. Ask Paystack whether
+      the parent's **NIN alone** is accepted for these accounts (their API docs show only BVN + bank account).
 - [x] **Provider decided: Paystack** (2026-10-20). Bachs is built in and can be switched on
       later from Platform → Providers (it needs its keys), but isn't configured. Reason: Bachs
       can't give each pupil their own account number.
